@@ -6,12 +6,12 @@
 # Author: jianglin
 # Email: xiyang0807@gmail.com
 # Created: 2017-03-15 14:48:01 (CST)
-# Last Update:星期五 2017-3-17 9:35:58 (CST)
+# Last Update:星期六 2017-3-18 11:34:36 (CST)
 #          By:
 # Description:
 # **************************************************************************
 import re
-from html import escape
+from time import time
 
 
 class Regex(object):
@@ -39,6 +39,7 @@ class Regex(object):
     unorder_list = re.compile(r'(?P<depth>\s*)(-|\+)\s+(?P<item>.+)$')
 
     table = re.compile(r'\s*\|(?P<cells>(.+\|)+)s*$')
+    table_setting = re.compile(r'\s*#\+ATTR_HTML:\s*:class\s*(?P<cls>.+)$')
 
 
 class Element(object):
@@ -55,7 +56,14 @@ class Heading(Element):
         m = self.regex.match(text)
         level = len(m.group('level')) + (self.offset - 1)
         title = m.group('title')
-        return '<h{level}>{title}</h{level}>'.format(level=level, title=title)
+        html_id = int(time() * 10000)
+        self.toc = self.to_toc(level, title, html_id)
+        return '<h{level} id="{id}">{title}</h{level}>'.format(
+            level=level, title=title, id=html_id)
+
+    def to_toc(self, level, title, html_id):
+        return ' ' * level + '- <a href="#{id}">{title}</a>'.format(
+            title=title, id=html_id)
 
 
 class Table(Element):
@@ -230,11 +238,12 @@ class Text(object):
 
 
 class OrgMode(object):
-    def __init__(self, offset=1):
+    def __init__(self, toc=True, offset=1):
         self.heading_offset = offset
+        self.heading_toc = toc
         self.regex = Regex
         self._html = ''
-        self._headings = []
+        self._toc = ''
         self._example_flag = False
         self._quote_flag = False
         self._src_flag = False
@@ -282,6 +291,9 @@ class OrgMode(object):
                 self.parse_unorder_list(line)
             elif Regex.order_list.match(line):
                 self.parse_order_list(line)
+            # elif Regex.table_setting.match(line):
+            #     m = Regex.table_setting.match(line)
+            #     print(m.groups())
             elif Regex.table.match(line):
                 self.parse_table(line)
             else:
@@ -332,7 +344,8 @@ class OrgMode(object):
 
     def parse_table(self, text):
         if not self._table_flag:
-            self.current.append('<table><tbody>')
+            self.current.append(
+                '<table class="table table-bordered table-hover"><tbody>')
             self._table_flag = True
         table = Table(Regex.table)
         self.elements.append(table)
@@ -341,7 +354,9 @@ class OrgMode(object):
     def parse_heading(self, text):
         heading = Heading(Regex.heading, self.heading_offset)
         self.elements.append(heading)
-        self.current.append(heading.parse(text))
+        string = heading.parse(text)
+        self.current.append(string)
+        self._toc += (heading.toc + '\n')
 
     def parse_example(self, text):
         if Regex.end_example.match(text):
@@ -352,7 +367,7 @@ class OrgMode(object):
             self._example_flag = False
             self._begin_buffer = ''
         else:
-            self._begin_buffer = text + '\n'
+            self._begin_buffer += (text + '\n')
 
     def parse_src(self, text):
         if Regex.end_src.match(text):
@@ -363,7 +378,7 @@ class OrgMode(object):
             self._src_flag = False
             self._begin_buffer = ''
         else:
-            self._begin_buffer = text + '\n'
+            self._begin_buffer += (text + '\n')
 
     def parse_quote(self, text):
         if Regex.end_quote.match(text):
@@ -375,7 +390,17 @@ class OrgMode(object):
             self._begin_buffer = ''
         else:
             text = Text(text).html
-            self._begin_buffer = text + '\n'
+            self._begin_buffer += (text + '\n')
+
+    def parse_toc(self, text):
+        return '''
+        <div id="table-of-contents">
+        <h2>Table of Contents</h2>
+        <div id="text-table-of-contents">
+        {text}
+        </div>
+        </div>
+        '''.format(text=text)
 
     def append(self, text):
         if self._src_flag or self._example_flag:
@@ -387,10 +412,14 @@ class OrgMode(object):
 
     def to_html(self):
         self.close()
+        if self.heading_offset and self._toc:
+            toc = OrgMode(self.heading_offset)
+            toc.parse(self._toc)
+            return self.parse_toc(toc.to_html()) + self._html
         return self._html
 
 
-def org_to_html(text, heading_offset=1):
-    org = OrgMode(heading_offset)
+def org_to_html(text, toc=True, heading_offset=1):
+    org = OrgMode(toc, heading_offset)
     org.parse(text)
     return org
