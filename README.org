@@ -1,8 +1,7 @@
 # org-python
 An orgmode parser for converting orgmode to html based on python.
 
-* feature
-- [-] feature [93%]
+* feature [93%]
   - [X] toc
   - [X] heading
     #+BEGIN_EXAMPLE

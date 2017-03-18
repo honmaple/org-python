@@ -6,7 +6,7 @@
 # Author: jianglin
 # Email: xiyang0807@gmail.com
 # Created: 2017-03-15 14:48:01 (CST)
-# Last Update:星期六 2017-3-18 11:34:36 (CST)
+# Last Update:星期六 2017-3-18 11:53:42 (CST)
 #          By:
 # Description:
 # **************************************************************************
@@ -412,7 +412,7 @@ class OrgMode(object):
 
     def to_html(self):
         self.close()
-        if self.heading_offset and self._toc:
+        if self.heading_toc and self._toc:
             toc = OrgMode(self.heading_offset)
             toc.parse(self._toc)
             return self.parse_toc(toc.to_html()) + self._html
