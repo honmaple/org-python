@@ -6,12 +6,23 @@
 # Author: jianglin
 # Email: xiyang0807@gmail.com
 # Created: 2017-03-15 14:48:01 (CST)
-# Last Update:星期六 2017-3-18 11:53:42 (CST)
+# Last Update:星期六 2017-3-18 22:30:39 (CST)
 #          By:
 # Description:
 # **************************************************************************
 import re
 from time import time
+
+
+def singleton(cls):
+    _instances = {}
+
+    def getinstance(*args, **kw):
+        if cls not in _instances:
+            _instances[cls] = cls(*args, **kw)
+        return _instances[cls]
+
+    return getinstance
 
 
 class Regex(object):
@@ -25,7 +36,7 @@ class Regex(object):
     verbatim = re.compile(r'~(?P<text>[\S]+?)~')
     image = re.compile(r'\[\[(?P<src>.+?)\](?:\[(?P<alt>.+?)\])?\]')
     link = re.compile(r'\[\[(?P<href>https?://.+?)\](?:\[(?P<text>.+?)\])?\]')
-
+    fn = re.compile(r'\[fn:(?P<text>.+?)\]')
     begin_example = re.compile(r'\s*#\+BEGIN_EXAMPLE$')
     end_example = re.compile(r'\s*#\+END_EXAMPLE$')
 
@@ -43,101 +54,6 @@ class Regex(object):
 
 
 class Element(object):
-    def __init__(self, regex):
-        self.regex = regex
-
-
-class Heading(Element):
-    def __init__(self, regex, offset=1):
-        self.offset = offset
-        self.regex = regex
-
-    def parse(self, text):
-        m = self.regex.match(text)
-        level = len(m.group('level')) + (self.offset - 1)
-        title = m.group('title')
-        html_id = int(time() * 10000)
-        self.toc = self.to_toc(level, title, html_id)
-        return '<h{level} id="{id}">{title}</h{level}>'.format(
-            level=level, title=title, id=html_id)
-
-    def to_toc(self, level, title, html_id):
-        return ' ' * level + '- <a href="#{id}">{title}</a>'.format(
-            title=title, id=html_id)
-
-
-class Table(Element):
-    def __init__(self, regex):
-        self.regex = regex
-
-    def parse(self, text):
-        m = self.regex.match(text)
-        cells = [c for c in m.group('cells').split('|') if c != '']
-        strings = ''
-        for cell in cells:
-            strings += '<td>{text}</td>'.format(text=cell.strip())
-        return '<tr>{text}</tr>'.format(text=strings)
-
-
-class UnorderList(Element):
-    def __init__(self, regex, depth):
-        self.regex = regex
-        self.depth = depth
-        self.times = 0
-
-    def parse(self, text):
-        m = self.regex.match(text)
-        depth = len(m.group('depth')) + 1
-        item = m.group('item')
-        if depth > self.depth:
-            string = '<ul><li>{item}'.format(item=item)
-            self.times += 1
-        elif depth < self.depth:
-            string = '</li></ul></li><li>{item}'.format(item=item)
-            self.times -= 1
-        else:
-            string = '</li><li>{item}'.format(item=item)
-        self.depth = depth
-        return string
-
-
-class OrderList(Element):
-    def __init__(self, regex, depth):
-        self.regex = regex
-        self.depth = depth
-        self.times = 0
-
-    def parse(self, text):
-        m = self.regex.match(text)
-        depth = len(m.group('depth')) + 1
-        item = m.group('item')
-        if depth > self.depth:
-            string = '<ol><li>{item}'.format(item=item)
-            self.times += 1
-        elif depth < self.depth:
-            string = '</li></ol></li><li>{item}'.format(item=item)
-            self.times -= 1
-        else:
-            string = '</li><li>{item}'.format(item=item)
-        self.depth = depth
-        return string
-
-
-class Src(object):
-    def __init__(self, lang='example'):
-        self.lang = lang
-
-    def parse(self, text):
-        return '<pre class="{lang}"><code>{text}</code></pre>'.format(
-            text=text, lang=self.lang)
-
-
-class BlockQuote(object):
-    def parse(self, text):
-        return '<blockquote>{text}</blockquote>'.format(text=text)
-
-
-class TextNode(object):
     label = '<span>{text}</span>'
 
     def __init__(self, regex):
@@ -150,31 +66,38 @@ class TextNode(object):
         return text
 
 
-class Underlined(TextNode):
+class Fn(Element):
+    '''
+    <sup><a id="fnr.1" class="footref" href="#fn.1">1</a></sup>
+    '''
+    label = '<sup><a id="fnr:{text}" class="footref" href="#fn.{text}">{text}</a></sup>'
+
+
+class Underlined(Element):
     label = '<span style="text-decoration:underline">{text}</span>'
 
 
-class Bold(TextNode):
+class Bold(Element):
     label = '<b>{text}</b>'
 
 
-class Italic(TextNode):
+class Italic(Element):
     label = '<i>{text}</i>'
 
 
-class Code(TextNode):
+class Code(Element):
     label = '<code>{text}</code>'
 
 
-class Delete(TextNode):
+class Delete(Element):
     label = '<del>{text}</del>'
 
 
-class Verbatim(TextNode):
+class Verbatim(Element):
     label = '<code>{text}</code>'
 
 
-class Image(TextNode):
+class Image(Element):
     label = '<img alt="{alt}" src="{src}"/>'
 
     def parse(self, text):
@@ -184,7 +107,7 @@ class Image(TextNode):
         return text
 
 
-class Link(TextNode):
+class Link(Element):
     label = '<a href="{href}">{text}</a>'
 
     def parse(self, text):
@@ -195,15 +118,74 @@ class Link(TextNode):
         return text
 
 
-class Text(object):
-    def __init__(self, line):
-        self._html = ''
+@singleton
+class Heading(Element):
+    def __init__(self, to_toc=True):
+        self.to_toc = to_toc
+        self.toc = ''
+        self.init()
+
+    def init(self):
+        self.string = ''
+        self.offset = 1
+
+    def append(self, text):
+        m = Regex.heading.match(text)
+        level = len(m.group('level')) + (self.offset - 1)
+        title = m.group('title')
+        html_id = int(time() * 10000)
+        self.string = '<h{level} id="{id}">{title}</h{level}>'.format(
+            level=level, title=title, id=html_id)
+        if self.to_toc:
+            self.toc += ' ' * level + '- <a href="#{id}">{title}</a>\n'.format(
+                title=title, id=html_id)
+
+    def to_html(self):
+        text = self.string
+        self.init()
+        return text
+
+
+@singleton
+class Table(Element):
+    def __init__(self):
+        self.init()
+
+    def init(self):
         self.flag = False
-        self.parse(line)
+        self.string = ''
+
+    def append(self, text):
+        if not self.flag:
+            self.flag = True
+        m = Regex.table.match(text)
+        cells = [c for c in m.group('cells').split('|') if c != '']
+        strings = ''
+        for cell in cells:
+            strings += '<td>{text}</td>'.format(text=cell.strip())
+        self.string += '<tr>{text}</tr>'.format(text=strings)
+
+    def to_html(self):
+        text = '<table><tbody>{text}</tbody></table>'.format(text=self.string)
+        self.init()
+        return text
+
+
+class Text(object):
+    def __init__(self, no_parse=False):
+        self.no_parse = no_parse
+        self.init()
+
+    def init(self):
+        self.string = ''
+
+    def append(self, text):
+        if self.no_parse:
+            self.string += (text + '\n')
+        else:
+            self.string += (self.parse(text) + '\n')
 
     def parse(self, text):
-        if self.flag:
-            return self._html
         if Regex.italic.search(text):
             text = Italic(Regex.italic).parse(text)
             return self.parse(text)
@@ -222,9 +204,11 @@ class Text(object):
         elif Regex.verbatim.search(text):
             text = Verbatim(Regex.verbatim).parse(text)
             return self.parse(text)
+        elif Regex.fn.search(text):
+            text = Fn(Regex.fn).parse(text)
+            return self.parse(text)
         else:
-            self._html += self.parse_other(text)
-            self.flag = True
+            return self.parse_other(text)
 
     def parse_other(self, text):
         if Regex.link.search(text):
@@ -234,163 +218,230 @@ class Text(object):
         return text
 
     def to_html(self):
-        return self._html
+        return self.string
+
+
+@singleton
+class Src(Element):
+    def __init__(self):
+        self.children = Text(no_parse=True)
+        self.init()
+
+    def init(self):
+        self.flag = False
+        self.lang = 'example'
+        self.children.init()
+
+    def append(self, text):
+        if not self.flag:
+            self.flag = True
+        self.lang = Regex.begin_src.match(text).group('lang')
+
+    def to_html(self):
+        text = '<pre class="{lang}"><code>{text}</code></pre>'.format(
+            text=self.children.to_html(), lang=self.lang)
+        self.init()
+        return text
+
+
+@singleton
+class Example(Element):
+    def __init__(self):
+        self.children = Text(no_parse=True)
+        self.init()
+
+    def init(self):
+        self.flag = False
+        self.lang = 'example'
+        self.children.init()
+
+    def append(self, text):
+        if not self.flag:
+            self.flag = True
+
+    def to_html(self):
+        text = '<pre class="{lang}"><code>{text}</code></pre>'.format(
+            text=self.children.to_html(), lang=self.lang)
+        self.init()
+        return text
+
+
+@singleton
+class BlockQuote(object):
+    def __init__(self):
+        self.children = Text()
+        self.init()
+
+    def init(self):
+        self.flag = False
+        self.children.init()
+
+    def append(self, text):
+        if not self.flag:
+            self.flag = True
+
+    def to_html(self):
+        text = '<blockquote>{text}</blockquote>'.format(
+            text=self.children.to_html())
+        self.init()
+        return text
+
+
+@singleton
+class UnderedList1(object):
+    def __init__(self):
+        self.children = Text()
+        self.init()
+
+    def init(self):
+        self.flag = False
+        self.string = ''
+        self.depth = -1
+        self.times = 0
+
+    def append(self, text):
+        if not self.flag:
+            self.flag = True
+        m = Regex.unorder_list.match(text)
+        depth = len(m.group('depth')) + 1
+        item = m.group('item')
+        if depth > self.depth:
+            string = '<ul><li>{item}'.format(item=item)
+            self.times += 1
+        elif depth < self.depth:
+            string = '</li></ul></li><li>{item}'.format(item=item)
+            self.times -= 1
+        else:
+            string = '</li><li>{item}'.format(item=item)
+        self.depth = depth
+        self.string = string
+
+    def to_html(self):
+        return self.string
+
+
+@singleton
+class OrderedList1(object):
+    def __init__(self):
+        self.children = Text()
+        self.init()
+
+    def init(self):
+        self.flag = False
+        self.string = ''
+        self.depth = -1
+        self.times = 0
+
+    def append(self, text):
+        if not self.flag:
+            self.flag = True
+        m = Regex.order_list.match(text)
+        depth = len(m.group('depth')) + 1
+        item = m.group('item')
+        if depth > self.depth:
+            string = '<ol><li>{item}'.format(item=item)
+            self.times += 1
+        elif depth < self.depth:
+            string = '</li></ol></li><li>{item}'.format(item=item)
+            self.times -= 1
+        else:
+            string = '</li><li>{item}'.format(item=item)
+        self.depth = depth
+        self.string = string
+
+    def to_html(self):
+        return self.string
+
+
+class OrgContent(object):
+    def __init__(self):
+        self.string = ''
+
+    def append(self, text):
+        self.string += (text + '\n')
+
+    def to_html(self):
+        return self.string
 
 
 class OrgMode(object):
     def __init__(self, toc=True, offset=1):
         self.heading_offset = offset
         self.heading_toc = toc
-        self.regex = Regex
-        self._html = ''
-        self._toc = ''
-        self._example_flag = False
-        self._quote_flag = False
-        self._src_flag = False
-        self._table_flag = False
-        self._src_lang = 'python'
-        self._begin_buffer = ''
-        self.elements = []
-        self.current = self
-        self._order_list_times = 0
-        self._order_list_depth = -1
-        self._order_list_flag = False
-        self._unorder_list_times = 0
-        self._unorder_list_depth = -1
-        self._unorder_list_flag = False
+        self.content = OrgContent()
+        self.src = Src()
+        self.example = Example()
+        self.blockquote = BlockQuote()
+        self.table = Table()
+        self.heading = Heading()
+        self.text = Text()
+        self.unordered_list = UnderedList1()
+        self.ordered_list = OrderedList1()
 
     def close_order_list(self, force=False):
-        if force or (self._order_list_flag and self._order_list_times == 1):
-            self.current.append('</li></ol>' * self._order_list_times)
-            self._order_list_flag = False
-            self._order_list_times = 0
-            self._order_list_depth = -1
+        if force or (self.ordered_list.flag and self.ordered_list.times >= 1):
+            self.content.append('</li></ol>' * self.ordered_list.times)
+            self.ordered_list.init()
 
     def close_unorder_list(self, force=False):
-        if force or (self._unorder_list_flag and
-                     self._unorder_list_times == 1):
-            self.current.append('</li></ul>' * self._unorder_list_times)
-            self._unorder_list_flag = False
-            self._unorder_list_times = 0
-            self._unorder_list_depth = -1
-
-    def close_table(self, force=False):
-        if force or self._table_flag:
-            self.current.append('</tbody></table>')
-            self._table_flag = False
+        if force or (self.unordered_list.flag and
+                     self.unordered_list.times >= 1):
+            self.content.append('</li></ul>' * self.unordered_list.times)
+            self.unordered_list.init()
 
     def close(self):
-        self.close_order_list()
         self.close_unorder_list()
-        self.close_table()
+        self.close_order_list()
 
-    def parse(self, text):
-        text = text.splitlines()
-        for line in text:
-            if Regex.unorder_list.match(line):
-                self.parse_unorder_list(line)
-            elif Regex.order_list.match(line):
-                self.parse_order_list(line)
-            # elif Regex.table_setting.match(line):
-            #     m = Regex.table_setting.match(line)
-            #     print(m.groups())
-            elif Regex.table.match(line):
-                self.parse_table(line)
-            else:
-                self.close()
-                self._parse(line)
-
-    def _parse(self, text):
-        if self._example_flag:
-            self.parse_example(text)
-        elif self._quote_flag:
-            self.parse_quote(text)
-        elif self._src_flag:
-            self.parse_src(text)
-        elif Regex.heading.match(text):
-            self.parse_heading(text)
-        elif Regex.begin_example.match(text):
-            self._example_flag = True
-        elif Regex.begin_quote.match(text):
-            self._quote_flag = True
-        elif Regex.begin_src.match(text):
-            self._src_flag = True
-            self._src_lang = Regex.begin_src.match(text).group('lang')
-        else:
-            text = Text(text).to_html()
-            self.current.append(text)
-
-    def parse_unorder_list(self, text):
-        l = UnorderList(Regex.unorder_list, self._unorder_list_depth)
-        string = l.parse(text)
-        self._unorder_list_times += l.times
-        self._unorder_list_depth = l.depth
-        self._unorder_list_flag = True
-        if self._order_list_flag and (
-                self._unorder_list_depth < self._order_list_depth):
+    def parse_unordered_list(self, text):
+        self.unordered_list.append(text)
+        if self.ordered_list.flag and (
+                self.unordered_list.depth < self.ordered_list.depth):
             self.close_order_list(True)
-        self.current.append(string)
+        self.content.append(self.unordered_list.to_html())
 
-    def parse_order_list(self, text):
-        l = OrderList(Regex.order_list, self._order_list_depth)
-        string = l.parse(text)
-        self._order_list_times += l.times
-        self._order_list_depth = l.depth
-        self._order_list_flag = True
-        if self._unorder_list_flag and (
-                self._order_list_depth < self._unorder_list_depth):
+    def parse_ordered_list(self, text):
+        self.ordered_list.append(text)
+        if self.unordered_list.flag and (
+                self.ordered_list.depth < self.unordered_list.depth):
             self.close_unorder_list(True)
-        self.current.append(string)
+        self.content.append(self.ordered_list.to_html())
+
+    def parse_text(self, text):
+        self.text.append(text)
+        self.content.append(self.text.to_html())
+        self.text.init()
 
     def parse_table(self, text):
-        if not self._table_flag:
-            self.current.append(
-                '<table class="table table-bordered table-hover"><tbody>')
-            self._table_flag = True
-        table = Table(Regex.table)
-        self.elements.append(table)
-        self.current.append(table.parse(text))
+        self.table.append(text)
 
     def parse_heading(self, text):
-        heading = Heading(Regex.heading, self.heading_offset)
-        self.elements.append(heading)
-        string = heading.parse(text)
-        self.current.append(string)
-        self._toc += (heading.toc + '\n')
+        self.heading.append(text)
+        self.content.append(self.heading.to_html())
 
     def parse_example(self, text):
         if Regex.end_example.match(text):
-            if not self._example_flag:
+            if not self.example.flag:
                 raise ValueError('ssss')
-            string = Src('example').parse(self._begin_buffer)
-            self.current.append(string)
-            self._example_flag = False
-            self._begin_buffer = ''
+            self.content.append(self.example.to_html())
         else:
-            self._begin_buffer += (text + '\n')
+            self.example.children.append(text)
 
     def parse_src(self, text):
         if Regex.end_src.match(text):
-            if not self._src_flag:
+            if not self.src.flag:
                 raise ValueError('ssss')
-            string = Src(self._src_lang).parse(self._begin_buffer)
-            self.current.append(string)
-            self._src_flag = False
-            self._begin_buffer = ''
+            self.content.append(self.src.to_html())
         else:
-            self._begin_buffer += (text + '\n')
+            self.src.children.append(text)
 
     def parse_quote(self, text):
         if Regex.end_quote.match(text):
-            if not self._quote_flag:
+            if not self.blockquote.flag:
                 raise ValueError('ssss')
-            string = BlockQuote().parse(self._begin_buffer)
-            self.current.append(string)
-            self._quote_flag = False
-            self._begin_buffer = ''
+            self.content.append(self.blockquote.to_html())
         else:
-            text = Text(text).html
-            self._begin_buffer += (text + '\n')
+            self.blockquote.children.append(text)
 
     def parse_toc(self, text):
         return '''
@@ -403,23 +454,53 @@ class OrgMode(object):
         '''.format(text=text)
 
     def append(self, text):
-        if self._src_flag or self._example_flag:
-            text = text.rstrip() + '\n'
-            self._html += text
-        elif text:
-            text = text.strip() + '\n'
-            self._html += text
+        if Regex.unorder_list.match(text):
+            self.parse_unordered_list(text)
+        elif Regex.order_list.match(text):
+            self.parse_ordered_list(text)
+        else:
+            if len(text) == len(text.lstrip()):
+                self.close()
+            self.parse(text)
+
+    def parse(self, text):
+        if Regex.table.match(text):
+            self.parse_table(text)
+        elif self.table.flag:
+            self.content.append(self.table.to_html())
+        elif self.example.flag:
+            self.parse_example(text)
+        elif self.src.flag:
+            self.parse_src(text)
+        elif self.blockquote.flag:
+            self.parse_quote(text)
+        elif Regex.heading.match(text):
+            self.parse_heading(text)
+        elif Regex.begin_example.match(text):
+            self.example.flag = True
+        elif Regex.begin_src.match(text):
+            self.src.append(text)
+        elif Regex.begin_quote.match(text):
+            self.blockquote.flag = True
+        else:
+            self.parse_text(text)
 
     def to_html(self):
-        self.close()
-        if self.heading_toc and self._toc:
-            toc = OrgMode(self.heading_offset)
-            toc.parse(self._toc)
-            return self.parse_toc(toc.to_html()) + self._html
-        return self._html
+        if self.heading_toc and self.heading.toc:
+            t = self.heading.toc.splitlines()
+            org = OrgMode(False, self.heading_offset)
+            for i in t:
+                org.append(i)
+            org.close_unorder_list(True)
+            toc = self.parse_toc(org.to_html())
+            org.heading.toc = ''
+            return toc + self.content.to_html()
+        return self.content.to_html()
 
 
 def org_to_html(text, toc=True, heading_offset=1):
     org = OrgMode(toc, heading_offset)
-    org.parse(text)
+    text = text.splitlines()
+    for t in text:
+        org.append(t)
     return org
