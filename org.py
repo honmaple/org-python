@@ -6,23 +6,12 @@
 # Author: jianglin
 # Email: xiyang0807@gmail.com
 # Created: 2017-03-15 14:48:01 (CST)
-# Last Update:星期六 2017-3-18 22:30:39 (CST)
+# Last Update:星期六 2017-3-18 23:39:12 (CST)
 #          By:
 # Description:
 # **************************************************************************
 import re
 from time import time
-
-
-def singleton(cls):
-    _instances = {}
-
-    def getinstance(*args, **kw):
-        if cls not in _instances:
-            _instances[cls] = cls(*args, **kw)
-        return _instances[cls]
-
-    return getinstance
 
 
 class Regex(object):
@@ -118,7 +107,6 @@ class Link(Element):
         return text
 
 
-@singleton
 class Heading(Element):
     def __init__(self, to_toc=True):
         self.to_toc = to_toc
@@ -146,27 +134,36 @@ class Heading(Element):
         return text
 
 
-@singleton
 class Table(Element):
     def __init__(self):
         self.init()
 
     def init(self):
         self.flag = False
+        self.has_th = False
         self.string = ''
 
     def append(self, text):
         if not self.flag:
             self.flag = True
         m = Regex.table.match(text)
-        cells = [c for c in m.group('cells').split('|') if c != '']
-        strings = ''
-        for cell in cells:
-            strings += '<td>{text}</td>'.format(text=cell.strip())
-        self.string += '<tr>{text}</tr>'.format(text=strings)
+        has_th = m.group('cells').replace('-', '').replace('+', '').replace(
+            '|', '')
+        if not self.has_th and not has_th and self.string:
+            self.has_th = True
+            td = re.compile(r'<td>(.*?)</td>')
+            self.string = td.sub(
+                lambda match: match.group(0).replace('td', 'th'), self.string)
+        if has_th:
+            cells = [c for c in m.group('cells').split('|') if c]
+            strings = ''
+            for cell in cells:
+                strings += '<td>{text}</td>'.format(text=cell.strip())
+            self.string += '<tr>{text}</tr>'.format(text=strings)
 
     def to_html(self):
-        text = '<table><tbody>{text}</tbody></table>'.format(text=self.string)
+        text = '<table class="table table-bordered table-hover"><tbody>{text}</tbody></table>'.format(
+            text=self.string)
         self.init()
         return text
 
@@ -221,7 +218,6 @@ class Text(object):
         return self.string
 
 
-@singleton
 class Src(Element):
     def __init__(self):
         self.children = Text(no_parse=True)
@@ -244,7 +240,6 @@ class Src(Element):
         return text
 
 
-@singleton
 class Example(Element):
     def __init__(self):
         self.children = Text(no_parse=True)
@@ -266,7 +261,6 @@ class Example(Element):
         return text
 
 
-@singleton
 class BlockQuote(object):
     def __init__(self):
         self.children = Text()
@@ -287,7 +281,6 @@ class BlockQuote(object):
         return text
 
 
-@singleton
 class UnderedList1(object):
     def __init__(self):
         self.children = Text()
@@ -320,7 +313,6 @@ class UnderedList1(object):
         return self.string
 
 
-@singleton
 class OrderedList1(object):
     def __init__(self):
         self.children = Text()
@@ -493,7 +485,6 @@ class OrgMode(object):
                 org.append(i)
             org.close_unorder_list(True)
             toc = self.parse_toc(org.to_html())
-            org.heading.toc = ''
             return toc + self.content.to_html()
         return self.content.to_html()
 
