@@ -6,7 +6,7 @@
 # Author: jianglin
 # Email: xiyang0807@gmail.com
 # Created: 2017-03-15 14:48:01 (CST)
-# Last Update:星期六 2017-3-18 23:39:12 (CST)
+# Last Update:星期日 2017-3-19 14:12:25 (CST)
 #          By:
 # Description:
 # **************************************************************************
@@ -14,31 +14,38 @@ import re
 from time import time
 
 
+class NoBeginError(Exception):
+    pass
+
+
 class Regex(object):
+    newline = re.compile(r'^$')
     heading = re.compile(r'^(?P<level>\*+)\s+(?P<title>.+)$')
-    bold = re.compile(r'\*(?P<text>[\S]+?)\*')
+    comment = re.compile(r'^(\s*)#(.*)$')
+    bold = re.compile(r' \*(?P<text>[\S]+?)\*')
     # italic = re.compile(r'(\*\*|/)(?P<text>[\S]+?)(\*\*|/)')
-    italic = re.compile(r'\*\*(?P<text>[\S]+?)\*\*')
-    underlined = re.compile(r'_(?P<text>[\S]+?)_')
-    code = re.compile(r'=(?P<text>[\S]+?)=')
-    delete = re.compile(r'\+(?P<text>[\S]+?)\+')
-    verbatim = re.compile(r'~(?P<text>[\S]+?)~')
+    italic = re.compile(r' \*\*(?P<text>[\S]+?)\*\*')
+    underlined = re.compile(r' _(?P<text>[\S]+?)_')
+    code = re.compile(r' =(?P<text>[\S]+?)=')
+    delete = re.compile(r' \+(?P<text>[\S]+?)\+')
+    verbatim = re.compile(r' ~(?P<text>[\S]+?)~')
     image = re.compile(r'\[\[(?P<src>.+?)\](?:\[(?P<alt>.+?)\])?\]')
     link = re.compile(r'\[\[(?P<href>https?://.+?)\](?:\[(?P<text>.+?)\])?\]')
     fn = re.compile(r'\[fn:(?P<text>.+?)\]')
-    begin_example = re.compile(r'\s*#\+BEGIN_EXAMPLE$')
-    end_example = re.compile(r'\s*#\+END_EXAMPLE$')
+    begin_example = re.compile(r'\s+#\+BEGIN_EXAMPLE$')
+    end_example = re.compile(r'\s+#\+END_EXAMPLE$')
 
-    begin_quote = re.compile(r'\s*#\+BEGIN_QUOTE$')
-    end_quote = re.compile(r'\s*#\+END_QUOTE$')
+    begin_quote = re.compile(r'\s+#\+BEGIN_QUOTE$')
+    end_quote = re.compile(r'\s+#\+END_QUOTE$')
 
-    begin_src = re.compile(r'\s*#\+BEGIN_SRC\s*(?P<lang>.+)$')
-    end_src = re.compile(r'\s*#\+END_SRC$')
+    begin_src = re.compile(r'\s+#\+BEGIN_SRC\s*(?P<lang>.+)$')
+    end_src = re.compile(r'\s+#\+END_SRC$')
 
     order_list = re.compile(r'(?P<depth>\s*)\d+(\.|\))\s+(?P<item>.+)$')
     unorder_list = re.compile(r'(?P<depth>\s*)(-|\+)\s+(?P<item>.+)$')
 
     table = re.compile(r'\s*\|(?P<cells>(.+\|)+)s*$')
+    table_sep = re.compile(r'^(\s*)\|((?:\+|-)*?)\|?$')
     table_setting = re.compile(r'\s*#\+ATTR_HTML:\s*:class\s*(?P<cls>.+)$')
 
 
@@ -88,10 +95,15 @@ class Verbatim(Element):
 
 class Image(Element):
     label = '<img alt="{alt}" src="{src}"/>'
+    label1 = '<img src="{src}"/>'
 
     def parse(self, text):
         for t in self.regex.finditer(text):
-            string = self.label.format(src=t.group('src'), alt=t.group('alt'))
+            if not t.group('alt'):
+                string = self.label1.format(src=t.group('src'))
+            else:
+                string = self.label.format(
+                    src=t.group('src'), alt=t.group('alt'))
             text = self.regex.sub(string, text)
         return text
 
@@ -147,19 +159,18 @@ class Table(Element):
         if not self.flag:
             self.flag = True
         m = Regex.table.match(text)
-        has_th = m.group('cells').replace('-', '').replace('+', '').replace(
-            '|', '')
-        if not self.has_th and not has_th and self.string:
+        cells = [c for c in m.group('cells').split('|') if c]
+        strings = ''
+        for cell in cells:
+            strings += '<td>{text}</td>'.format(text=cell.strip())
+        self.string += '<tr>{text}</tr>\n'.format(text=strings)
+
+    def sep(self, text):
+        if not self.has_th and self.string:
             self.has_th = True
             td = re.compile(r'<td>(.*?)</td>')
             self.string = td.sub(
                 lambda match: match.group(0).replace('td', 'th'), self.string)
-        if has_th:
-            cells = [c for c in m.group('cells').split('|') if c]
-            strings = ''
-            for cell in cells:
-                strings += '<td>{text}</td>'.format(text=cell.strip())
-            self.string += '<tr>{text}</tr>'.format(text=strings)
 
     def to_html(self):
         text = '<table class="table table-bordered table-hover"><tbody>{text}</tbody></table>'.format(
@@ -178,12 +189,14 @@ class Text(object):
 
     def append(self, text):
         if self.no_parse:
-            self.string += (text + '\n')
+            self.string += (text + '\n') if text else text
         else:
-            self.string += (self.parse(text) + '\n')
+            self.string += (self.parse(text) + '\n') if text else text
 
     def parse(self, text):
-        if Regex.italic.search(text):
+        if Regex.comment.search(text):
+            return text
+        elif Regex.italic.search(text):
             text = Italic(Regex.italic).parse(text)
             return self.parse(text)
         elif Regex.bold.search(text):
@@ -289,7 +302,7 @@ class UnderedList1(object):
     def init(self):
         self.flag = False
         self.string = ''
-        self.depth = -1
+        self.depth = 0
         self.times = 0
 
     def append(self, text):
@@ -321,7 +334,7 @@ class OrderedList1(object):
     def init(self):
         self.flag = False
         self.string = ''
-        self.depth = -1
+        self.depth = 0
         self.times = 0
 
     def append(self, text):
@@ -414,7 +427,7 @@ class OrgMode(object):
     def parse_example(self, text):
         if Regex.end_example.match(text):
             if not self.example.flag:
-                raise ValueError('ssss')
+                raise NoBeginError('no begin example')
             self.content.append(self.example.to_html())
         else:
             self.example.children.append(text)
@@ -422,7 +435,7 @@ class OrgMode(object):
     def parse_src(self, text):
         if Regex.end_src.match(text):
             if not self.src.flag:
-                raise ValueError('ssss')
+                raise NoBeginError('no begin src')
             self.content.append(self.src.to_html())
         else:
             self.src.children.append(text)
@@ -430,7 +443,7 @@ class OrgMode(object):
     def parse_quote(self, text):
         if Regex.end_quote.match(text):
             if not self.blockquote.flag:
-                raise ValueError('ssss')
+                raise NoBeginError('no begin quote')
             self.content.append(self.blockquote.to_html())
         else:
             self.blockquote.children.append(text)
@@ -438,7 +451,7 @@ class OrgMode(object):
     def parse_toc(self, text):
         return '''
         <div id="table-of-contents">
-        <h2>Table of Contents</h2>
+        <h1>Table of Contents</h1>
         <div id="text-table-of-contents">
         {text}
         </div>
@@ -456,7 +469,9 @@ class OrgMode(object):
             self.parse(text)
 
     def parse(self, text):
-        if Regex.table.match(text):
+        if Regex.table_sep.match(text):
+            self.table.sep(text)
+        elif Regex.table.match(text):
             self.parse_table(text)
         elif self.table.flag:
             self.content.append(self.table.to_html())
