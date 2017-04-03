@@ -6,7 +6,7 @@
 # Author: jianglin
 # Email: xiyang0807@gmail.com
 # Created: 2017-03-15 14:48:01 (CST)
-# Last Update:星期日 2017-3-19 14:12:25 (CST)
+# Last Update:星期一 2017-4-3 23:26:35 (CST)
 #          By:
 # Description:
 # **************************************************************************
@@ -120,18 +120,18 @@ class Link(Element):
 
 
 class Heading(Element):
-    def __init__(self, to_toc=True):
+    def __init__(self, to_toc=True, offset=0):
         self.to_toc = to_toc
         self.toc = ''
         self.init()
+        self.offset = offset
 
     def init(self):
         self.string = ''
-        self.offset = 1
 
     def append(self, text):
         m = Regex.heading.match(text)
-        level = len(m.group('level')) + (self.offset - 1)
+        level = len(m.group('level')) + self.offset
         title = m.group('title')
         html_id = int(time() * 10000)
         self.string = '<h{level} id="{id}">{title}</h{level}>'.format(
@@ -370,7 +370,7 @@ class OrgContent(object):
 
 
 class OrgMode(object):
-    def __init__(self, toc=True, offset=1):
+    def __init__(self, toc=True, offset=0):
         self.heading_offset = offset
         self.heading_toc = toc
         self.content = OrgContent()
@@ -378,7 +378,7 @@ class OrgMode(object):
         self.example = Example()
         self.blockquote = BlockQuote()
         self.table = Table()
-        self.heading = Heading()
+        self.heading = Heading(toc, offset)
         self.text = Text()
         self.unordered_list = UnderedList1()
         self.ordered_list = OrderedList1()
@@ -504,7 +504,7 @@ class OrgMode(object):
         return self.content.to_html()
 
 
-def org_to_html(text, toc=True, heading_offset=1):
+def org_to_html(text, toc=True, heading_offset=0):
     org = OrgMode(toc, heading_offset)
     text = text.splitlines()
     for t in text:
