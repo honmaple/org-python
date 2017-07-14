@@ -1,7 +1,7 @@
 # org-python
 An orgmode parser for converting orgmode to html based on python.
 
-* feature [93%]
+* feature [100%]
   - [X] toc
   - [X] heading
     #+BEGIN_EXAMPLE
@@ -57,8 +57,10 @@ An orgmode parser for converting orgmode to html based on python.
   - [X] begin_example
   - [X] begin_src
   - [X] begin_quote
-  - [ ] table
+  - [X] table
     #+BEGIN_EXAMPLE
+    | th1-1  | th1-2  | th1-3  |
+    |--------+--------+--------|
     | row1-1 | row1-2 | row1-3 |
     | row2-1 | row2-2 | row2-3 |
     | row3-1 | row3-2 | row3-3 |

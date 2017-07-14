@@ -6,7 +6,7 @@
 # Author: jianglin
 # Email: xiyang0807@gmail.com
 # Created: 2017-07-12 21:21:00 (CST)
-# Last Update:星期五 2017-7-14 21:51:27 (CST)
+# Last Update:星期五 2017-7-14 22:1:29 (CST)
 #          By:
 # Description:
 # **************************************************************************
@@ -426,15 +426,16 @@ class Org(object):
             element = Src(self.current, lang)
             self.begin_init(element)
         elif not text.strip():
-            if isinstance(self.current, Paragraph):
+            while isinstance(self.current, Paragraph):
                 self.current = self.current.parent
+            self.children.append(Text(''))
         elif Regex.attr.match(text):
             pass
         elif isinstance(self.current, Paragraph):
-            self.current.append(text)
+            self.current.append(text.strip())
         else:
             element = Paragraph(self.current)
-            element.append(text)
+            element.append(text.strip())
             self.children.append(element)
             self.current = element
 
@@ -463,19 +464,12 @@ class Org(object):
         self.children.append(child)
         child.parent = self
 
-    def to_html(self, br=''):
-        return br.join([child.to_html() for child in self.children])
+    def to_html(self,):
+        return '\n'.join([child.to_html() for child in self.children])
 
     def __str__(self):
         return 'Org(' + ' '.join([str(child) for child in self.children]) + ')'
 
 
-def org_to_html(text, offset=0, newline=''):
-    return Org(text, offset).to_html(newline)
-
-
-if __name__ == '__main__':
-    text = '''
-[[http://docs.celeryproject.org/en/latest/][文档在这]]
-'''
-    print(org_to_html(text, 0, '\n'))
+def org_to_html(text, offset=0):
+    return Org(text, offset).to_html()
