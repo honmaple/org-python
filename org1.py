@@ -6,7 +6,7 @@
 # Author: jianglin
 # Email: xiyang0807@gmail.com
 # Created: 2017-03-15 14:48:01 (CST)
-# Last Update:星期一 2017-4-3 23:26:35 (CST)
+# Last Update:星期四 2017-7-13 18:5:24 (CST)
 #          By:
 # Description:
 # **************************************************************************
@@ -58,7 +58,7 @@ class Element(object):
     def parse(self, text):
         for t in self.regex.finditer(text):
             string = self.label.format(text=t.group('text'))
-            text = self.regex.sub(string, text)
+            text = self.regex.sub(string, text, 1)
         return text
 
 
@@ -503,6 +503,9 @@ class OrgMode(object):
             return toc + self.content.to_html()
         return self.content.to_html()
 
+    def __str__(self):
+        return str(self.to_html())
+
 
 def org_to_html(text, toc=True, heading_offset=0):
     org = OrgMode(toc, heading_offset)
@@ -510,3 +513,15 @@ def org_to_html(text, toc=True, heading_offset=0):
     for t in text:
         org.append(t)
     return org
+
+
+if __name__ == '__main__':
+    text = '''
+    - sdasdasd
+    - asadasds
+    - asdsadasd
+        - asdsad
+    - sdadasd
+
+    '''
+    print(org_to_html(text, False, 2).to_html())
