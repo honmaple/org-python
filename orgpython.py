@@ -6,7 +6,7 @@
 # Author: jianglin
 # Email: xiyang0807@gmail.com
 # Created: 2017-07-12 21:21:00 (CST)
-# Last Update:星期五 2017-7-14 22:1:29 (CST)
+# Last Update:星期六 2017-7-15 9:44:19 (CST)
 #          By:
 # Description:
 # **************************************************************************
@@ -353,7 +353,7 @@ class Table(Element):
 
     def append(self, child):
         if Regex.table_sep.match(child):
-            # 如果有th,替换td
+            # th instead of td only once
             td = re.compile(r'<td>(.*?)</td>')
             text = '\n'.join([ch.to_html() for ch in self.children])
             text = td.sub(lambda match: match.group(0).replace('td', 'th'),
@@ -373,64 +373,42 @@ class Paragraph(Element):
 
 
 class Org(object):
-    def __init__(self, text, offset=0, parse=True):
+    def __init__(self, text, offset=0, toc=True, parse=True):
         self.text = text
         self.children = []
         self.parent = self
         self.current = self
         self.offset = offset
         self.flag = False
+        self.toc = toc
+        self.headings = []
         if parse:
             for line in text.splitlines():
                 self.parse(line.rstrip())
 
     def parse(self, text):
         if hasattr(self.current, 'flag') and self.current.flag:
-            if not self.current.end(text):
-                self.current.append(text)
-            else:
-                e = self.current
-                self.end_init(self.current.__class__)
-                if isinstance(e, (UnorderList, OrderList)):
-                    self.parse(text)
+            self.parse_end(text)
         elif Regex.heading.match(text):
-            self.children.append(Heading(text, self.offset))
+            self.parse_heading(text)
         elif Regex.unorder_list.match(text):
-            while isinstance(self.current, Paragraph):
-                self.current = self.current.parent
-            m = Regex.unorder_list.match(text)
-            depth = len(m.group('depth'))
-            element = UnorderList(self.current, depth)
-            element.append(text)
-            self.begin_init(element)
+            self.parse_unorderlist(text)
         elif Regex.order_list.match(text):
-            while isinstance(self.current, Paragraph):
-                self.current = self.current.parent
-            m = Regex.order_list.match(text)
-            depth = len(m.group('depth'))
-            element = OrderList(self.current, depth)
-            element.append(text)
-            self.begin_init(element)
+            self.parse_orderlist(text)
         elif Regex.table.match(text):
-            element = Table(self.current)
-            element.append(text)
-            self.begin_init(element)
+            self.parse_table(text)
         elif Regex.begin_quote.match(text):
-            element = BlockQuote(self.current)
-            self.begin_init(element)
+            self.parse_quote(text)
         elif Regex.begin_example.match(text):
-            element = Example(self.current)
-            self.begin_init(element)
+            self.parse_example(text)
         elif Regex.begin_src.match(text):
-            lang = Regex.begin_src.match(text).group('lang')
-            element = Src(self.current, lang)
-            self.begin_init(element)
+            self.parse_src(text)
+        elif Regex.attr.match(text):
+            pass
         elif not text.strip():
             while isinstance(self.current, Paragraph):
                 self.current = self.current.parent
             self.children.append(Text(''))
-        elif Regex.attr.match(text):
-            pass
         elif isinstance(self.current, Paragraph):
             self.current.append(text.strip())
         else:
@@ -454,9 +432,56 @@ class Org(object):
             self.current = self.current.parent
         self.current = self.current.parent
 
-    def inline_parse(self, text):
-        if isinstance(self.current, Example):
+    def parse_end(self, text):
+        if not self.current.end(text):
             self.current.append(text)
+        else:
+            e = self.current
+            self.end_init(self.current.__class__)
+            if isinstance(e, (UnorderList, OrderList)):
+                self.parse(text)
+
+    def parse_heading(self, text):
+        element = Heading(text, self.offset)
+        self.children.append(element)
+        if self.toc:
+            self.headings.append(element)
+
+    def parse_unorderlist(self, text):
+        while isinstance(self.current, Paragraph):
+            self.current = self.current.parent
+        m = Regex.unorder_list.match(text)
+        depth = len(m.group('depth'))
+        element = UnorderList(self.current, depth)
+        element.append(text)
+        self.begin_init(element)
+
+    def parse_orderlist(self, text):
+        while isinstance(self.current, Paragraph):
+            self.current = self.current.parent
+        m = Regex.order_list.match(text)
+        depth = len(m.group('depth'))
+        element = OrderList(self.current, depth)
+        element.append(text)
+        self.begin_init(element)
+
+    def parse_table(self, text):
+        element = Table(self.current)
+        element.append(text)
+        self.begin_init(element)
+
+    def parse_src(self, text):
+        lang = Regex.begin_src.match(text).group('lang')
+        element = Src(self.current, lang)
+        self.begin_init(element)
+
+    def parse_example(self, text):
+        element = Example(self.current)
+        self.begin_init(element)
+
+    def parse_quote(self, text):
+        element = BlockQuote(self.current)
+        self.begin_init(element)
 
     def append(self, child):
         if isinstance(child, str):
@@ -464,12 +489,55 @@ class Org(object):
         self.children.append(child)
         child.parent = self
 
-    def to_html(self,):
+    def to_html(self):
+        # if self.toc:
+        #     heading = ' '.join([child.title for child in self.headings])
+        #     print(heading)
+        # for i in self.children:
+        #     print('啊啊', i)
         return '\n'.join([child.to_html() for child in self.children])
 
     def __str__(self):
         return 'Org(' + ' '.join([str(child) for child in self.children]) + ')'
 
 
-def org_to_html(text, offset=0):
-    return Org(text, offset).to_html()
+def org_to_html(text, offset=0, toc=True):
+    return Org(text, offset, toc).to_html()
+
+
+if __name__ == '__main__':
+    text = '''* heading
+* headng1
+** headng2
+*** headng3
+* headng4
+** headng5
+* headng6
+* headng7
+
+    - list1
+    - list2
+    - list3
+    - list4
+    - list5
+
+    | th1-1  | th1-2  | th1-3  |
+    |--------+--------+--------|
+    | row1-1 | row1-2 | row1-3 |
+    | row2-1 | row2-2 | row2-3 |
+    | row3-1 | row3-2 | row3-3 |
+    |--------+--------+--------|
+
+    项目结构是这样的
+    #+BEGIN_QUOTE
+    ├── celery_app.py
+    ├── config.py
+    ├── task
+    │   ├── all_task.py
+    │   ├── __init__.py
+    #+END_QUOTE
+    注意: *任务必须大于等于两层目录*
+
+
+    '''
+    print(org_to_html(text, 0))
