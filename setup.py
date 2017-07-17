@@ -6,7 +6,7 @@
 # Author: jianglin
 # Email: xiyang0807@gmail.com
 # Created: 2017-07-14 22:07:06 (CST)
-# Last Update:星期五 2017-7-14 22:11:8 (CST)
+# Last Update:星期一 2017-7-17 17:0:38 (CST)
 #          By:
 # Description:
 # **************************************************************************
@@ -15,7 +15,7 @@ from setuptools import setup
 
 setup(
     name='org-python',
-    version='0.1.0',
+    version='0.1.1',
     url='https://github.com/honmaple/org-python',
     license='BSD',
     author='honmaple',
