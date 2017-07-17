@@ -6,11 +6,12 @@
 # Author: jianglin
 # Email: xiyang0807@gmail.com
 # Created: 2017-07-12 21:21:00 (CST)
-# Last Update:星期六 2017-7-15 9:44:19 (CST)
+# Last Update:星期一 2017-7-17 10:33:13 (CST)
 #          By:
 # Description:
 # **************************************************************************
 import re
+from time import time
 
 
 class Regex(object):
@@ -141,19 +142,26 @@ class Link(InlineElement):
 
 class Heading(InlineElement):
     label = '<h{level}>{title}</h{level}>'
-    label1 = '<h{level} id="{id}">{title}</h{level}>'
+    label1 = '<h{level} id="{tid}">{title}</h{level}>'
     regex = Regex.heading
 
-    def __init__(self, text, offset=0):
+    def __init__(self, text, offset=0, toc=True):
         self.text = text
         self.offset = offset
+        self._toc = toc
         self.children = []
 
     def parse(self, text):
         m = Regex.heading.match(text)
         level = len(m.group('level')) + self.offset
         title = m.group('title')
-        return self.label.format(level=level, title=title)
+        text = self.label.format(level=level, title=title)
+        if self._toc:
+            tid = int(time() * 10000)
+            text = self.label1.format(level=level, tid=tid, title=title)
+            self.toc = '{}- <a href="#{}">{}</a>'.format(' ' * level, tid,
+                                                         title)
+        return text
 
 
 class Text(InlineElement):
@@ -373,7 +381,7 @@ class Paragraph(Element):
 
 
 class Org(object):
-    def __init__(self, text, offset=0, toc=True, parse=True):
+    def __init__(self, text, offset=0, toc=False, parse=True):
         self.text = text
         self.children = []
         self.parent = self
@@ -442,7 +450,7 @@ class Org(object):
                 self.parse(text)
 
     def parse_heading(self, text):
-        element = Heading(text, self.offset)
+        element = Heading(text, self.offset, self.toc)
         self.children.append(element)
         if self.toc:
             self.headings.append(element)
@@ -490,12 +498,16 @@ class Org(object):
         child.parent = self
 
     def to_html(self):
-        # if self.toc:
-        #     heading = ' '.join([child.title for child in self.headings])
-        #     print(heading)
-        # for i in self.children:
-        #     print('啊啊', i)
-        return '\n'.join([child.to_html() for child in self.children])
+        text = '\n'.join([child.to_html() for child in self.children])
+        if self.toc:
+            headings = '\n'.join([heading.toc for heading in self.headings])
+            headings = (
+                '<div id="table-of-contents">'
+                '<h1>Table of Contents</h1>'
+                '<div id="text-table-of-contents">{}\n</div></div>\n\n'
+            ).format(Org(headings).to_html())
+            text = headings + text
+        return text
 
     def __str__(self):
         return 'Org(' + ' '.join([str(child) for child in self.children]) + ')'
@@ -503,41 +515,3 @@ class Org(object):
 
 def org_to_html(text, offset=0, toc=True):
     return Org(text, offset, toc).to_html()
-
-
-if __name__ == '__main__':
-    text = '''* heading
-* headng1
-** headng2
-*** headng3
-* headng4
-** headng5
-* headng6
-* headng7
-
-    - list1
-    - list2
-    - list3
-    - list4
-    - list5
-
-    | th1-1  | th1-2  | th1-3  |
-    |--------+--------+--------|
-    | row1-1 | row1-2 | row1-3 |
-    | row2-1 | row2-2 | row2-3 |
-    | row3-1 | row3-2 | row3-3 |
-    |--------+--------+--------|
-
-    项目结构是这样的
-    #+BEGIN_QUOTE
-    ├── celery_app.py
-    ├── config.py
-    ├── task
-    │   ├── all_task.py
-    │   ├── __init__.py
-    #+END_QUOTE
-    注意: *任务必须大于等于两层目录*
-
-
-    '''
-    print(org_to_html(text, 0))
