@@ -6,7 +6,7 @@
 # Author: jianglin
 # Email: xiyang0807@gmail.com
 # Created: 2017-07-12 21:21:00 (CST)
-# Last Update:星期一 2017-7-17 10:33:13 (CST)
+# Last Update:星期一 2017-7-17 17:53:24 (CST)
 #          By:
 # Description:
 # **************************************************************************
@@ -18,13 +18,13 @@ class Regex(object):
     newline = re.compile(r'^$')
     heading = re.compile(r'^(?P<level>\*+)\s+(?P<title>.+)$')
     comment = re.compile(r'^(\s*)#(.*)$')
-    bold = re.compile(r'\*(?P<text>[\S]+?)\*')
+    bold = re.compile(r'( |^)\*(?P<text>[\S]+)\*')
     # italic = re.compile(r'(\*\*|/)(?P<text>[\S]+?)(\*\*|/)')
-    italic = re.compile(r'\*\*(?P<text>[\S]+?)\*\*')
-    underlined = re.compile(r' _(?P<text>[\S]+?)_')
-    code = re.compile(r'=(?P<text>[\S]+?)=')
-    delete = re.compile(r'\+(?P<text>[\S]+?)\+')
-    verbatim = re.compile(r'~(?P<text>[\S]+?)~')
+    italic = re.compile(r'( |^)\*\*(?P<text>[\S]+)\*\*')
+    underlined = re.compile(r'( |^)_(?P<text>[\S]+)_')
+    code = re.compile(r'( |^)=(?P<text>[\S]+)=')
+    delete = re.compile(r'( |^)\+(?P<text>[\S]+)\+')
+    verbatim = re.compile(r'( |^)~(?P<text>[\S]+)~')
     image = re.compile(r'\[\[(?P<src>.+?)\](?:\[(?P<alt>.+?)\])?\]')
     link = re.compile(r'\[\[(?P<href>https?://.+?)\](?:\[(?P<text>.+?)\])?\]')
     fn = re.compile(r'\[fn:(?P<text>.+?)\]')
@@ -65,10 +65,8 @@ class InlineElement(object):
         return self.parse(self.text)
 
     def parse(self, text):
-        for t in self.regex.finditer(text):
-            string = self.label.format(text=t.group('text'))
-            text = self.regex.sub(string, text, 1)
-        return text
+        return self.regex.sub(
+            lambda match: self.label.format(text=match.group('text')), text)
 
     def __str__(self):
         return '{}({})'.format(self.__class__.__name__, self.text.strip())
@@ -118,6 +116,11 @@ class Image(InlineElement):
     regex = Regex.image
 
     def parse(self, text):
+        # return self.regex.sub(
+        #     lambda match: self.label.format(text=match.group('text'))
+        #     if not match.group('alt') else
+        #     self.label.format(src=match.group('src'),
+        #                       alt=match.group('alt')), text)
         for t in self.regex.finditer(text):
             if not t.group('alt'):
                 string = self.label1.format(src=t.group('src'))
@@ -133,11 +136,14 @@ class Link(InlineElement):
     regex = Regex.link
 
     def parse(self, text):
-        for t in self.regex.finditer(text):
-            string = self.label.format(
-                href=t.group('href'), text=t.group('text'))
-            text = self.regex.sub(string, text, 1)
-        return text
+        return self.regex.sub(
+            lambda match: self.label.format(href=match.group('href'),
+                                       text=match.group('text')), text)
+        # for t in self.regex.finditer(text):
+        #     string = self.label.format(
+        #         href=t.group('href'), text=t.group('text'))
+        #     text = self.regex.sub(string, text, 1)
+        # return text
 
 
 class Heading(InlineElement):
@@ -501,11 +507,10 @@ class Org(object):
         text = '\n'.join([child.to_html() for child in self.children])
         if self.toc:
             headings = '\n'.join([heading.toc for heading in self.headings])
-            headings = (
-                '<div id="table-of-contents">'
-                '<h1>Table of Contents</h1>'
-                '<div id="text-table-of-contents">{}\n</div></div>\n\n'
-            ).format(Org(headings).to_html())
+            headings = ('<div id="table-of-contents">'
+                        '<h1>Table of Contents</h1>'
+                        '<div id="text-table-of-contents">{}\n</div></div>\n\n'
+                        ).format(Org(headings).to_html())
             text = headings + text
         return text
 
