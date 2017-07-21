@@ -6,19 +6,21 @@
 # Author: jianglin
 # Email: xiyang0807@gmail.com
 # Created: 2017-03-16 16:28:32 (CST)
-# Last Update:星期五 2017-7-14 22:3:46 (CST)
+# Last Update:星期五 2017-7-21 9:20:24 (CST)
 #          By:
 # Description:
 # **************************************************************************
 import unittest
 # from org1 import org_to_html
 from orgpython import org_to_html
+from orgpython import Org
 
 
 class TestOrg(unittest.TestCase):
     def test_heading(self):
-        html = org_to_html('* hello')
-        self.assertEqual(html, '<h1>hello</h1>')
+        org = Org('* heading1\n** heading2', toc=True)
+        self.assertEqual(
+            str(org), 'Org(Heading(* heading1),Heading(** heading2))')
 
     def test_bold(self):
         text = '''

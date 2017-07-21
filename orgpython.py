@@ -6,7 +6,7 @@
 # Author: jianglin
 # Email: xiyang0807@gmail.com
 # Created: 2017-07-12 21:21:00 (CST)
-# Last Update:星期一 2017-7-17 10:33:13 (CST)
+# Last Update:星期五 2017-7-21 9:23:27 (CST)
 #          By:
 # Description:
 # **************************************************************************
@@ -18,13 +18,13 @@ class Regex(object):
     newline = re.compile(r'^$')
     heading = re.compile(r'^(?P<level>\*+)\s+(?P<title>.+)$')
     comment = re.compile(r'^(\s*)#(.*)$')
-    bold = re.compile(r'\*(?P<text>[\S]+?)\*')
+    bold = re.compile(r'( |^)\*(?P<text>[\S]+)\*')
     # italic = re.compile(r'(\*\*|/)(?P<text>[\S]+?)(\*\*|/)')
-    italic = re.compile(r'\*\*(?P<text>[\S]+?)\*\*')
-    underlined = re.compile(r' _(?P<text>[\S]+?)_')
-    code = re.compile(r'=(?P<text>[\S]+?)=')
-    delete = re.compile(r'\+(?P<text>[\S]+?)\+')
-    verbatim = re.compile(r'~(?P<text>[\S]+?)~')
+    italic = re.compile(r'( |^)\*\*(?P<text>[\S]+)\*\*')
+    underlined = re.compile(r'( |^)_(?P<text>[\S]+)_')
+    code = re.compile(r'( |^)=(?P<text>[\S]+)=')
+    delete = re.compile(r'( |^)\+(?P<text>[\S]+)\+')
+    verbatim = re.compile(r'( |^)~(?P<text>[\S]+)~')
     image = re.compile(r'\[\[(?P<src>.+?)\](?:\[(?P<alt>.+?)\])?\]')
     link = re.compile(r'\[\[(?P<href>https?://.+?)\](?:\[(?P<text>.+?)\])?\]')
     fn = re.compile(r'\[fn:(?P<text>.+?)\]')
@@ -41,6 +41,7 @@ class Regex(object):
     any_depth = re.compile(r'(?P<depth>\s*)(?P<title>.+)$')
     order_list = re.compile(r'(?P<depth>\s*)\d+(\.|\))\s+(?P<title>.+)$')
     unorder_list = re.compile(r'(?P<depth>\s*)(-|\+)\s+(?P<title>.+)$')
+    checkbox = re.compile(r'[[](?P<check>.+)[]]\s+(?P<title>.+)$')
 
     table = re.compile(r'\s*\|(?P<cells>(.+\|)+)s*$')
     table_sep = re.compile(r'^(\s*)\|((?:\+|-)*?)\|?$')
@@ -65,10 +66,8 @@ class InlineElement(object):
         return self.parse(self.text)
 
     def parse(self, text):
-        for t in self.regex.finditer(text):
-            string = self.label.format(text=t.group('text'))
-            text = self.regex.sub(string, text, 1)
-        return text
+        return self.regex.sub(
+            lambda match: self.label.format(text=match.group('text')), text)
 
     def __str__(self):
         return '{}({})'.format(self.__class__.__name__, self.text.strip())
@@ -118,6 +117,11 @@ class Image(InlineElement):
     regex = Regex.image
 
     def parse(self, text):
+        # return self.regex.sub(
+        #     lambda match: self.label.format(text=match.group('text'))
+        #     if not match.group('alt') else
+        #     self.label.format(src=match.group('src'),
+        #                       alt=match.group('alt')), text)
         for t in self.regex.finditer(text):
             if not t.group('alt'):
                 string = self.label1.format(src=t.group('src'))
@@ -133,11 +137,14 @@ class Link(InlineElement):
     regex = Regex.link
 
     def parse(self, text):
-        for t in self.regex.finditer(text):
-            string = self.label.format(
-                href=t.group('href'), text=t.group('text'))
-            text = self.regex.sub(string, text, 1)
-        return text
+        return self.regex.sub(
+            lambda match: self.label.format(href=match.group('href'),
+                                       text=match.group('text')), text)
+        # for t in self.regex.finditer(text):
+        #     string = self.label.format(
+        #         href=t.group('href'), text=t.group('text'))
+        #     text = self.regex.sub(string, text, 1)
+        # return text
 
 
 class Heading(InlineElement):
@@ -145,7 +152,7 @@ class Heading(InlineElement):
     label1 = '<h{level} id="{tid}">{title}</h{level}>'
     regex = Regex.heading
 
-    def __init__(self, text, offset=0, toc=True):
+    def __init__(self, text, offset=0, toc=False):
         self.text = text
         self.offset = offset
         self._toc = toc
@@ -157,7 +164,7 @@ class Heading(InlineElement):
         title = m.group('title')
         text = self.label.format(level=level, title=title)
         if self._toc:
-            tid = int(time() * 10000)
+            tid = 'org-{}'.format(int(time() * 10000))
             text = self.label1.format(level=level, tid=tid, title=title)
             self.toc = '{}- <a href="#{}">{}</a>'.format(' ' * level, tid,
                                                          title)
@@ -288,7 +295,10 @@ class ListItem(Element):
         self.children = [Org('', parse=False)]
 
     def append(self, child):
-        self.children[0].parse(child)
+        if not self.children[0].children:
+            self.children[0].append(Text(child))
+        else:
+            self.children[0].parse(child)
 
 
 class List(Element):
@@ -306,6 +316,12 @@ class List(Element):
             m = self.regex.match(child)
             depth = len(m.group('depth'))
             title = m.group('title')
+            checkbox = Regex.checkbox.match(title)
+            if checkbox:
+                title = '<input type="checkbox" />{}'
+                if checkbox.group('check') == 'X':
+                    title = '<input type="checkbox" checked="checked" />{}'
+                title = title.format(checkbox.group('title'))
             if depth == self.depth:
                 element = ListItem(self.current, depth)
                 element.append(title)
@@ -376,6 +392,25 @@ class Table(Element):
         return not Regex.table.match(text)
 
 
+class Toc(Element):
+    def __init__(self, parent):
+        self.parent = parent
+        self.flag = False
+        self.children = []
+
+    def append(self, child):
+        self.children.append(child)
+
+    def to_html(self):
+        text = '\n'.join([child.toc for child in self.children])
+        if text:
+            text = ('<div id="table-of-contents">'
+                    '<h2>Table of Contents</h2>'
+                    '<div id="text-table-of-contents">{}\n</div></div>\n\n'
+                    ).format(Org(text).to_html())
+        return text
+
+
 class Paragraph(Element):
     label = '<p>{text}</p>'
 
@@ -387,9 +422,8 @@ class Org(object):
         self.parent = self
         self.current = self
         self.offset = offset
-        self.flag = False
-        self.toc = toc
-        self.headings = []
+        self.toc = Toc(self)
+        self.toc.flag = toc
         if parse:
             for line in text.splitlines():
                 self.parse(line.rstrip())
@@ -420,6 +454,8 @@ class Org(object):
         elif isinstance(self.current, Paragraph):
             self.current.append(text.strip())
         else:
+            while isinstance(self.current, Paragraph):
+                self.current = self.current.parent
             element = Paragraph(self.current)
             element.append(text.strip())
             self.children.append(element)
@@ -450,10 +486,9 @@ class Org(object):
                 self.parse(text)
 
     def parse_heading(self, text):
-        element = Heading(text, self.offset, self.toc)
+        element = Heading(text, self.offset, self.toc.flag)
+        self.toc.append(element)
         self.children.append(element)
-        if self.toc:
-            self.headings.append(element)
 
     def parse_unorderlist(self, text):
         while isinstance(self.current, Paragraph):
@@ -499,18 +534,12 @@ class Org(object):
 
     def to_html(self):
         text = '\n'.join([child.to_html() for child in self.children])
-        if self.toc:
-            headings = '\n'.join([heading.toc for heading in self.headings])
-            headings = (
-                '<div id="table-of-contents">'
-                '<h1>Table of Contents</h1>'
-                '<div id="text-table-of-contents">{}\n</div></div>\n\n'
-            ).format(Org(headings).to_html())
-            text = headings + text
+        if self.toc.flag:
+            text = self.toc.to_html() + text
         return text
 
     def __str__(self):
-        return 'Org(' + ' '.join([str(child) for child in self.children]) + ')'
+        return 'Org(' + ','.join([str(child) for child in self.children]) + ')'
 
 
 def org_to_html(text, offset=0, toc=True):
