@@ -6,7 +6,7 @@
 # Author: jianglin
 # Email: xiyang0807@gmail.com
 # Created: 2017-07-12 21:21:00 (CST)
-# Last Update:星期五 2017-7-21 9:18:35 (CST)
+# Last Update:星期五 2017-7-21 9:22:13 (CST)
 #          By:
 # Description:
 # **************************************************************************
@@ -548,24 +548,3 @@ class Org(object):
 
 def org_to_html(text, offset=0, toc=True):
     return Org(text, offset, toc).to_html()
-
-
-if __name__ == '__main__':
-    text = '''
-* 为什么需要用token验证
-  原因呢是因为写博客时已经在本地写好了，但是要发表到网站上还需要这么几步:
-
-  - [X] 打开浏览器
-  - [X] 打开我的网站
-  - [X] 进入登陆页
-  - [X] 登陆
-  - [X] 进入后台页
-  - [X] 进入文章发表页
-  - [X] 复制粘贴
-  - [X] 发表
-
-**italic** italic*
-italic* italic*
-**italic** **italic**
-    '''
-    print(org_to_html(text))
