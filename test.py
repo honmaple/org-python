@@ -6,7 +6,7 @@
 # Author: jianglin
 # Email: xiyang0807@gmail.com
 # Created: 2017-03-16 16:28:32 (CST)
-# Last Update:星期五 2017-7-21 9:20:24 (CST)
+# Last Update:星期三 2017-7-26 11:3:4 (CST)
 #          By:
 # Description:
 # **************************************************************************
@@ -29,19 +29,16 @@ class TestOrg(unittest.TestCase):
         *bold* *bold*
         '''
         html = org_to_html(text)
-        self.assertEqual(html,
-                         '<b>bold</b> bold*bold* bold*<b>bold</b> <b>bold</b>')
+        self.assertEqual(html.count('<b>'), 3)
 
     def test_italic(self):
         text = '''
         **italic** italic*
-        italic* italic*
+        italic* *1* italic*
         **italic** **italic**
         '''
         html = org_to_html(text)
-        self.assertEqual(
-            html,
-            '<i>italic</i> italic*italic* italic*<i>italic</i> <i>italic</i>')
+        self.assertEqual(html.count('<i>'), 3)
 
 
 if __name__ == '__main__':

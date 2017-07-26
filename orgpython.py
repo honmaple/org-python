@@ -6,7 +6,7 @@
 # Author: jianglin
 # Email: xiyang0807@gmail.com
 # Created: 2017-07-12 21:21:00 (CST)
-# Last Update:星期五 2017-7-21 9:23:27 (CST)
+# Last Update:星期三 2017-7-26 11:9:17 (CST)
 #          By:
 # Description:
 # **************************************************************************
@@ -28,6 +28,7 @@ class Regex(object):
     image = re.compile(r'\[\[(?P<src>.+?)\](?:\[(?P<alt>.+?)\])?\]')
     link = re.compile(r'\[\[(?P<href>https?://.+?)\](?:\[(?P<text>.+?)\])?\]')
     fn = re.compile(r'\[fn:(?P<text>.+?)\]')
+    hr = re.compile(r'^\s*\-{5,}\s*')
 
     begin_example = re.compile(r'\s*#\+BEGIN_EXAMPLE$')
     end_example = re.compile(r'\s*#\+END_EXAMPLE$')
@@ -218,9 +219,10 @@ class Element(object):
         self.children = []
 
     def append(self, child):
-        if isinstance(child, str):
-            child = Text(child)
-        self.children.append(child)
+        if self.children or child:
+            if isinstance(child, str):
+                child = Text(child)
+            self.children.append(child)
 
     def to_html(self):
         text = '\n'.join([child.to_html() for child in self.children])
@@ -232,7 +234,7 @@ class Element(object):
 
 
 class Example(Element):
-    label = '\n<pre class="example"><code>\n{text}\n</code></pre>\n'
+    label = '\n<pre class="example">\n{text}\n</pre>\n'
 
     def __init__(self, parent):
         self.parent = parent
@@ -240,16 +242,17 @@ class Example(Element):
         self.children = []
 
     def append(self, child):
-        if isinstance(child, str):
-            child = Text(child, True)
-        self.children.append(child)
+        if self.children or child:
+            if isinstance(child, str):
+                child = Text(child, True)
+            self.children.append(child)
 
     def end(self, text):
         return Regex.end_example.match(text)
 
 
 class Src(Element):
-    label = '<pre class="{lang}"><code>\n{text}\n</code></pre>'
+    label = '<pre class="{lang}">\n{text}\n</pre>'
 
     def __init__(self, parent, lang='python'):
         self.parent = parent
@@ -258,9 +261,10 @@ class Src(Element):
         self.children = []
 
     def append(self, child):
-        if isinstance(child, str):
-            child = Text(child, True)
-        self.children.append(child)
+        if self.children or child:
+            if isinstance(child, str):
+                child = Text(child, True)
+            self.children.append(child)
 
     def to_html(self):
         text = '\n'.join([child.to_html() for child in self.children])
@@ -411,6 +415,11 @@ class Toc(Element):
         return text
 
 
+class Hr(Element):
+    def to_html(self):
+        return '<hr/>'
+
+
 class Paragraph(Element):
     label = '<p>{text}</p>'
 
@@ -445,6 +454,8 @@ class Org(object):
             self.parse_example(text)
         elif Regex.begin_src.match(text):
             self.parse_src(text)
+        elif Regex.hr.match(text):
+            self.parse_hr(text)
         elif Regex.attr.match(text):
             pass
         elif not text.strip():
@@ -488,6 +499,10 @@ class Org(object):
     def parse_heading(self, text):
         element = Heading(text, self.offset, self.toc.flag)
         self.toc.append(element)
+        self.children.append(element)
+
+    def parse_hr(self, text):
+        element = Hr(self)
         self.children.append(element)
 
     def parse_unorderlist(self, text):
