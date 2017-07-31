@@ -6,7 +6,7 @@
 # Author: jianglin
 # Email: xiyang0807@gmail.com
 # Created: 2017-07-12 21:21:00 (CST)
-# Last Update:星期三 2017-7-26 11:9:17 (CST)
+# Last Update:星期一 2017-7-31 23:49:3 (CST)
 #          By:
 # Description:
 # **************************************************************************
@@ -25,8 +25,11 @@ class Regex(object):
     code = re.compile(r'( |^)=(?P<text>[\S]+)=')
     delete = re.compile(r'( |^)\+(?P<text>[\S]+)\+')
     verbatim = re.compile(r'( |^)~(?P<text>[\S]+)~')
-    image = re.compile(r'\[\[(?P<src>.+?)\](?:\[(?P<alt>.+?)\])?\]')
+    image = re.compile(r'\[\[(?P<text>.+?)[.](jpg | png | gif)\]\]')
     link = re.compile(r'\[\[(?P<href>https?://.+?)\](?:\[(?P<text>.+?)\])?\]')
+    origin_link = re.compile(
+        r'(http|ftp|https):\/\/[\w\-_]+(\.[\w\-_]+)+([\w\-\.,@?^=%&amp;:/~\+#]*[\w\-\@?^=%&amp;/~\+#])?'
+    )
     fn = re.compile(r'\[fn:(?P<text>.+?)\]')
     hr = re.compile(r'^\s*\-{5,}\s*')
 
@@ -113,24 +116,8 @@ class Verbatim(InlineElement):
 
 
 class Image(InlineElement):
-    label = '<img alt="{alt}" src="{src}"/>'
-    label1 = '<img src="{src}"/>'
+    label = '<img src="{text}"/>'
     regex = Regex.image
-
-    def parse(self, text):
-        # return self.regex.sub(
-        #     lambda match: self.label.format(text=match.group('text'))
-        #     if not match.group('alt') else
-        #     self.label.format(src=match.group('src'),
-        #                       alt=match.group('alt')), text)
-        for t in self.regex.finditer(text):
-            if not t.group('alt'):
-                string = self.label1.format(src=t.group('src'))
-            else:
-                string = self.label.format(
-                    src=t.group('src'), alt=t.group('alt'))
-            text = self.regex.sub(string, text, 1)
-        return text
 
 
 class Link(InlineElement):
@@ -138,14 +125,24 @@ class Link(InlineElement):
     regex = Regex.link
 
     def parse(self, text):
-        return self.regex.sub(
-            lambda match: self.label.format(href=match.group('href'),
-                                       text=match.group('text')), text)
-        # for t in self.regex.finditer(text):
-        #     string = self.label.format(
-        #         href=t.group('href'), text=t.group('text'))
-        #     text = self.regex.sub(string, text, 1)
-        # return text
+        def _match(match):
+            if not match.group('text'):
+                return Image.label.format(text=match.group('href'))
+            return self.label.format(
+                href=match.group('href'), text=match.group('text'))
+
+        return self.regex.sub(_match, text)
+
+
+class OriginLink(InlineElement):
+    label = '<a href="{0}">{0}</a>'
+    regex = Regex.origin_link
+
+    def parse(self, text):
+        def _match(match):
+            return self.label.format(match.group())
+
+        return self.regex.sub(_match, text)
 
 
 class Heading(InlineElement):
@@ -200,10 +197,14 @@ class Text(InlineElement):
             return self.parse_other(text)
 
     def parse_other(self, text):
+        if not isinstance(text, str):
+            text = text.to_html()
         if Regex.link.search(text):
-            text = Link(text).to_html()
+            return self.parse_other(Link(text))
         elif Regex.image.search(text):
-            text = Image(text).to_html()
+            return self.parse_other(Image(text))
+        # elif Regex.origin_link.search(text):
+        #     text = OriginLink(text).to_html()
         return text
 
     def to_html(self):
@@ -233,28 +234,10 @@ class Element(object):
         return self.__class__.__name__ + '(' + ','.join(str_children) + ')'
 
 
-class Example(Element):
-    label = '\n<pre class="example">\n{text}\n</pre>\n'
-
-    def __init__(self, parent):
-        self.parent = parent
-        self.flag = False
-        self.children = []
-
-    def append(self, child):
-        if self.children or child:
-            if isinstance(child, str):
-                child = Text(child, True)
-            self.children.append(child)
-
-    def end(self, text):
-        return Regex.end_example.match(text)
-
-
 class Src(Element):
     label = '<pre class="{lang}">\n{text}\n</pre>'
 
-    def __init__(self, parent, lang='python'):
+    def __init__(self, parent, lang='example'):
         self.parent = parent
         self.lang = lang
         self.flag = False
@@ -272,6 +255,11 @@ class Src(Element):
 
     def end(self, text):
         return Regex.end_src.match(text)
+
+
+class Example(Src):
+    def end(self, text):
+        return Regex.end_example.match(text)
 
 
 class BlockQuote(Element):
