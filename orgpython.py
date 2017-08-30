@@ -6,7 +6,7 @@
 # Author: jianglin
 # Email: xiyang0807@gmail.com
 # Created: 2017-07-12 21:21:00 (CST)
-# Last Update:星期一 2017-7-31 23:49:3 (CST)
+# Last Update:星期一 2017-7-31 23:57:56 (CST)
 #          By:
 # Description:
 # **************************************************************************
@@ -162,11 +162,14 @@ class Heading(InlineElement):
         title = m.group('title')
         text = self.label.format(level=level, title=title)
         if self._toc:
-            tid = 'org-{}'.format(int(time() * 10000))
+            tid = self.heading_id(text)
             text = self.label1.format(level=level, tid=tid, title=title)
             self.toc = '{}- <a href="#{}">{}</a>'.format(' ' * level, tid,
                                                          title)
         return text
+
+    def heading_id(self, text):
+        return 'org-{}'.format(int(time() * 10000))
 
 
 class Text(InlineElement):
