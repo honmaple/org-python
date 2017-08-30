@@ -6,12 +6,13 @@
 # Author: jianglin
 # Email: xiyang0807@gmail.com
 # Created: 2017-07-12 21:21:00 (CST)
-# Last Update:星期一 2017-7-31 23:57:56 (CST)
+# Last Update:星期四 2017-8-31 1:7:36 (CST)
 #          By:
 # Description:
 # **************************************************************************
 import re
 from time import time
+from collections import OrderedDict
 
 
 class Regex(object):
@@ -60,18 +61,17 @@ class NotBeginError(Exception):
 
 class InlineElement(object):
     label = '{text}'
-    regex = None
 
-    def __init__(self, text):
+    def __init__(self, text, regex):
         self.text = text
+        self.regex = regex
         self.children = []
 
     def to_html(self):
-        return self.parse(self.text)
+        def _match(match):
+            return self.label.format(text=match.group('text'))
 
-    def parse(self, text):
-        return self.regex.sub(
-            lambda match: self.label.format(text=match.group('text')), text)
+        return self.regex.sub(_match, self.text)
 
     def __str__(self):
         return '{}({})'.format(self.__class__.__name__, self.text.strip())
@@ -82,67 +82,57 @@ class Fn(InlineElement):
     <sup><a id="fnr.1" class="footref" href="#fn.1">1</a></sup>
     '''
     label = '<sup><a id="fnr:{text}" class="footref" href="#fn.{text}">{text}</a></sup>'
-    regex = Regex.fn
 
 
 class Underlined(InlineElement):
     label = '<span style="text-decoration:underline">{text}</span>'
-    regex = Regex.underlined
 
 
 class Bold(InlineElement):
     label = '<b>{text}</b>'
-    regex = Regex.bold
 
 
 class Italic(InlineElement):
     label = '<i>{text}</i>'
-    regex = Regex.italic
 
 
 class Code(InlineElement):
     label = '<code>{text}</code>'
-    regex = Regex.code
 
 
 class Delete(InlineElement):
     label = '<del>{text}</del>'
-    regex = Regex.delete
 
 
 class Verbatim(InlineElement):
     label = '<code>{text}</code>'
-    regex = Regex.verbatim
 
 
 class Image(InlineElement):
     label = '<img src="{text}"/>'
-    regex = Regex.image
 
 
 class Link(InlineElement):
     label = '<a href="{href}">{text}</a>'
-    regex = Regex.link
 
-    def parse(self, text):
+    def to_html(self):
         def _match(match):
             if not match.group('text'):
                 return Image.label.format(text=match.group('href'))
             return self.label.format(
                 href=match.group('href'), text=match.group('text'))
 
-        return self.regex.sub(_match, text)
+        return self.regex.sub(_match, self.text)
 
 
 class OriginLink(InlineElement):
     label = '<a href="{0}">{0}</a>'
-    regex = Regex.origin_link
 
-    def parse(self, text):
+    def to_html(self):
         def _match(match):
             return self.label.format(match.group())
 
-        return self.regex.sub(_match, text)
+        return self.regex.sub(_match, self.text)
 
 
 class Heading(InlineElement):
@@ -156,8 +146,8 @@ class Heading(InlineElement):
         self._toc = toc
         self.children = []
 
-    def parse(self, text):
-        m = Regex.heading.match(text)
+    def to_html(self):
+        m = Regex.heading.match(self.text)
         level = len(m.group('level')) + self.offset
         title = m.group('title')
         text = self.label.format(level=level, title=title)
@@ -173,6 +163,19 @@ class Heading(InlineElement):
 
 
 class Text(InlineElement):
+    regex = OrderedDict({
+        'comment': Regex.comment,
+        'italic': Regex.italic,
+        'bold': Regex.bold,
+        'underlined': Regex.underlined,
+        'code': Regex.code,
+        'delete': Regex.delete,
+        'verbatim': Regex.verbatim,
+        'fn': Regex.fn,
+        'link': Regex.link,
+        'image': Regex.image,
+    })
+
     def __init__(self, text, no_parse=False):
         self.text = text
         self.no_parse = no_parse
@@ -180,35 +183,42 @@ class Text(InlineElement):
     def parse(self, text):
         if not isinstance(text, str):
             text = text.to_html()
-        if Regex.comment.search(text) or self.no_parse:
+        if self.no_parse:
             return text
-        elif Regex.italic.search(text):
-            return self.parse(Italic(text))
-        elif Regex.bold.search(text):
-            return self.parse(Bold(text))
-        elif Regex.underlined.search(text):
-            return self.parse(Underlined(text))
-        elif Regex.code.search(text):
-            return self.parse(Code(text))
-        elif Regex.delete.search(text):
-            return self.parse(Delete(text))
-        elif Regex.verbatim.search(text):
-            return self.parse(Verbatim(text))
-        elif Regex.fn.search(text):
-            return self.parse(Fn(text))
-        else:
-            return self.parse_other(text)
-
-    def parse_other(self, text):
-        if not isinstance(text, str):
-            text = text.to_html()
-        if Regex.link.search(text):
-            return self.parse_other(Link(text))
-        elif Regex.image.search(text):
-            return self.parse_other(Image(text))
-        # elif Regex.origin_link.search(text):
-        #     text = OriginLink(text).to_html()
+        for parse, regex in self.regex.items():
+            if regex.search(text):
+                return getattr(self, 'parse_' + parse)(text, regex)
         return text
+
+    def parse_comment(self, text):
+        return text
+
+    def parse_italic(self, text, regex):
+        return self.parse(Italic(text, regex))
+
+    def parse_bold(self, text, regex):
+        return self.parse(Bold(text, regex))
+
+    def parse_underlined(self, text, regex):
+        return self.parse(Underlined(text, regex))
+
+    def parse_code(self, text, regex):
+        return self.parse(Code(text, regex))
+
+    def parse_delete(self, text, regex):
+        return self.parse(Delete(text, regex))
+
+    def parse_verbatim(self, text, regex):
+        return self.parse(Verbatim(text, regex))
+
+    def parse_fn(self, text, regex):
+        return self.parse(Fn(text, regex))
+
+    def parse_link(self, text, regex):
+        return self.parse(Link(text, regex))
+
+    def parse_image(self, text, regex):
+        return self.parse(Image(text, regex))
 
     def to_html(self):
         return self.parse(self.text)
@@ -415,7 +425,35 @@ class Paragraph(Element):
     label = '<p>{text}</p>'
 
 
+class Re(object):
+    def match(self, text):
+        pass
+
+
 class Org(object):
+    class _end:
+        def __init__(self, _self):
+            self._self = _self
+
+        def match(self, text):
+            _self = self._self
+            return hasattr(_self.current, 'flag') and _self.current.flag
+
+    regex = OrderedDict({
+        'end': _end,
+        'heading': Regex.heading,
+        'unorderlist': Regex.unorder_list,
+        'orderlist': Regex.order_list,
+        'table': Regex.table,
+        'quote': Regex.begin_quote,
+        'example': Regex.begin_example,
+        'src': Regex.begin_src,
+        'hr': Regex.hr,
+        'attr': Regex.attr,
+        'newline': Regex.newline,
+    })
+    del _end
+
     def __init__(self, text, offset=0, toc=False, parse=True):
         self.text = text
         self.children = []
@@ -425,43 +463,25 @@ class Org(object):
         self.toc = Toc(self)
         self.toc.flag = toc
         if parse:
-            for line in text.splitlines():
-                self.parse(line.rstrip())
+            self._parse(text)
+
+    def _parse(self, text):
+        for line in text.splitlines():
+            self.parse(line.rstrip())
 
     def parse(self, text):
-        if hasattr(self.current, 'flag') and self.current.flag:
-            self.parse_end(text)
-        elif Regex.heading.match(text):
-            self.parse_heading(text)
-        elif Regex.unorder_list.match(text):
-            self.parse_unorderlist(text)
-        elif Regex.order_list.match(text):
-            self.parse_orderlist(text)
-        elif Regex.table.match(text):
-            self.parse_table(text)
-        elif Regex.begin_quote.match(text):
-            self.parse_quote(text)
-        elif Regex.begin_example.match(text):
-            self.parse_example(text)
-        elif Regex.begin_src.match(text):
-            self.parse_src(text)
-        elif Regex.hr.match(text):
-            self.parse_hr(text)
-        elif Regex.attr.match(text):
-            pass
-        elif not text.strip():
-            while isinstance(self.current, Paragraph):
-                self.current = self.current.parent
-            self.children.append(Text(''))
-        elif isinstance(self.current, Paragraph):
-            self.current.append(text.strip())
-        else:
-            while isinstance(self.current, Paragraph):
-                self.current = self.current.parent
-            element = Paragraph(self.current)
-            element.append(text.strip())
-            self.children.append(element)
-            self.current = element
+        for parse, regex in self.regex.items():
+            if callable(regex):
+                regex = regex(self)
+            if regex.match(text):
+                getattr(self, 'parse_' + parse)(text)
+                return
+        while isinstance(self.current, Paragraph):
+            self.current = self.current.parent
+        element = Paragraph(self.current)
+        element.append(text.strip())
+        self.children.append(element)
+        self.current = element
 
     def begin_init(self, element):
         self.current.append(element)
@@ -486,6 +506,11 @@ class Org(object):
             self.end_init(self.current.__class__)
             if isinstance(e, (UnorderList, OrderList)):
                 self.parse(text)
+
+    def parse_newline(self, text):
+        while isinstance(self.current, Paragraph):
+            self.current = self.current.parent
+        self.children.append(Text(''))
 
     def parse_heading(self, text):
         element = Heading(text, self.offset, self.toc.flag)
@@ -531,6 +556,9 @@ class Org(object):
     def parse_quote(self, text):
         element = BlockQuote(self.current)
         self.begin_init(element)
+
+    def parse_attr(self, text):
+        pass
 
     def append(self, child):
         if isinstance(child, str):
