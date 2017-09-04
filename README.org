@@ -41,7 +41,7 @@
      ***** headind 5
      ****** headind 6
      #+END_EXAMPLE
-   - [X] ordered_list
+   - [X] unordered_list
      #+BEGIN_EXAMPLE
      - list
      - list
@@ -49,7 +49,7 @@
          + list
        - list
      #+END_EXAMPLE
-   - [X] unordered_list
+   - [X] ordered_list
      #+BEGIN_EXAMPLE
      1. list
      2. list
