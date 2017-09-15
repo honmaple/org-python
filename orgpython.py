@@ -6,7 +6,7 @@
 # Author: jianglin
 # Email: xiyang0807@gmail.com
 # Created: 2017-07-12 21:21:00 (CST)
-# Last Update:星期四 2017-8-31 1:7:36 (CST)
+# Last Update:星期五 2017-9-15 11:0:54 (CST)
 #          By:
 # Description:
 # **************************************************************************
@@ -16,7 +16,8 @@ from collections import OrderedDict
 
 
 class Regex(object):
-    newline = re.compile(r'^$')
+    blankline = re.compile(r'^$')
+    newline = re.compile(r'\\$')
     heading = re.compile(r'^(?P<level>\*+)\s+(?P<title>.+)$')
     comment = re.compile(r'^(\s*)#(.*)$')
     bold = re.compile(r'( |^)\*(?P<text>[\S]+)\*')
@@ -36,6 +37,12 @@ class Regex(object):
 
     begin_example = re.compile(r'\s*#\+BEGIN_EXAMPLE$')
     end_example = re.compile(r'\s*#\+END_EXAMPLE$')
+
+    begin_verse = re.compile(r'\s*#\+BEGIN_VERSE$')
+    end_verse = re.compile(r'\s*#\+END_VERSE$')
+
+    begin_center = re.compile(r'\s*#\+BEGIN_CENTER$')
+    end_center = re.compile(r'\s*#\+END_CENTER$')
 
     begin_quote = re.compile(r'\s*#\+BEGIN_QUOTE$')
     end_quote = re.compile(r'\s*#\+END_QUOTE$')
@@ -108,6 +115,11 @@ class Verbatim(InlineElement):
     label = '<code>{text}</code>'
 
 
+class NewLine(InlineElement):
+    def to_html(self):
+        return self.regex.sub('<br/>', self.text)
+
+
 class Image(InlineElement):
     label = '<img src="{text}"/>'
 
@@ -165,6 +177,7 @@ class Heading(InlineElement):
 class Text(InlineElement):
     regex = OrderedDict({
         'comment': Regex.comment,
+        'newline': Regex.newline,
         'italic': Regex.italic,
         'bold': Regex.bold,
         'underlined': Regex.underlined,
@@ -190,8 +203,11 @@ class Text(InlineElement):
                 return getattr(self, 'parse_' + parse)(text, regex)
         return text
 
-    def parse_comment(self, text):
+    def parse_comment(self, text, regex):
         return text
+
+    def parse_newline(self, text, regex):
+        return self.parse(NewLine(text, regex))
 
     def parse_italic(self, text, regex):
         return self.parse(Italic(text, regex))
@@ -273,6 +289,37 @@ class Src(Element):
 class Example(Src):
     def end(self, text):
         return Regex.end_example.match(text)
+
+
+class Verse(Element):
+    label = '<p class="org-verse">\n{text}\n</p>'
+
+    def __init__(self, parent):
+        self.parent = parent
+        self.flag = False
+        self.children = []
+
+    def to_html(self):
+        text = '<br/>\n'.join([child.to_html() for child in self.children])
+        return self.label.format(text=text)
+
+    def end(self, text):
+        return Regex.end_verse.match(text)
+
+
+class Center(Element):
+    label = '<div class="org-center">\n{text}\n</div>'
+
+    def __init__(self, parent):
+        self.parent = parent
+        self.flag = False
+        self.children = [Org('', parse=False)]
+
+    def append(self, child):
+        self.children[0].parse(child)
+
+    def end(self, text):
+        return Regex.end_center.match(text)
 
 
 class BlockQuote(Element):
@@ -446,11 +493,13 @@ class Org(object):
         'orderlist': Regex.order_list,
         'table': Regex.table,
         'quote': Regex.begin_quote,
+        'verse': Regex.begin_verse,
+        'center': Regex.begin_center,
         'example': Regex.begin_example,
         'src': Regex.begin_src,
         'hr': Regex.hr,
         'attr': Regex.attr,
-        'newline': Regex.newline,
+        'blankline': Regex.blankline,
     })
     del _end
 
@@ -476,12 +525,15 @@ class Org(object):
             if regex.match(text):
                 getattr(self, 'parse_' + parse)(text)
                 return
-        while isinstance(self.current, Paragraph):
-            self.current = self.current.parent
-        element = Paragraph(self.current)
-        element.append(text.strip())
-        self.children.append(element)
-        self.current = element
+        if isinstance(self.current, Paragraph):
+            self.current.append(text.strip())
+        else:
+            while isinstance(self.current, Paragraph):
+                self.current = self.current.parent
+            element = Paragraph(self.current)
+            element.append(text.strip())
+            self.children.append(element)
+            self.current = element
 
     def begin_init(self, element):
         self.current.append(element)
@@ -507,7 +559,7 @@ class Org(object):
             if isinstance(e, (UnorderList, OrderList)):
                 self.parse(text)
 
-    def parse_newline(self, text):
+    def parse_blankline(self, text):
         while isinstance(self.current, Paragraph):
             self.current = self.current.parent
         self.children.append(Text(''))
@@ -555,6 +607,14 @@ class Org(object):
 
     def parse_quote(self, text):
         element = BlockQuote(self.current)
+        self.begin_init(element)
+
+    def parse_center(self, text):
+        element = Center(self.current)
+        self.begin_init(element)
+
+    def parse_verse(self, text):
+        element = Verse(self.current)
         self.begin_init(element)
 
     def parse_attr(self, text):
