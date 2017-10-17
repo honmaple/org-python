@@ -1,7 +1,7 @@
 * org-python
   An orgmode parser for converting orgmode to html based on python.
 
-  [[https://pypi.python.org/pypi/org-python][https://img.shields.io/badge/pypi-v0.1.4-brightgreen.svg]]
+  [[https://pypi.python.org/pypi/org-python][https://img.shields.io/badge/pypi-v0.1.5-brightgreen.svg]]
   [[https://python.org][https://img.shields.io/badge/python-3-brightgreen.svg]]
   [[LICENSE][https://img.shields.io/badge/license-BSD-blue.svg]]
 

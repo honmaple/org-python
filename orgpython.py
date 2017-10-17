@@ -6,7 +6,7 @@
 # Author: jianglin
 # Email: xiyang0807@gmail.com
 # Created: 2017-07-12 21:21:00 (CST)
-# Last Update:星期五 2017-9-15 11:0:54 (CST)
+# Last Update:星期二 2017-10-17 10:38:25 (CST)
 #          By:
 # Description:
 # **************************************************************************
@@ -20,13 +20,13 @@ class Regex(object):
     newline = re.compile(r'\\$')
     heading = re.compile(r'^(?P<level>\*+)\s+(?P<title>.+)$')
     comment = re.compile(r'^(\s*)#(.*)$')
-    bold = re.compile(r'( |^)\*(?P<text>[\S]+)\*')
+    bold = re.compile(r'( |^)\*(?P<text>[^ ].*?[^ ])\*( |$)')
     # italic = re.compile(r'(\*\*|/)(?P<text>[\S]+?)(\*\*|/)')
-    italic = re.compile(r'( |^)\*\*(?P<text>[\S]+)\*\*')
-    underlined = re.compile(r'( |^)_(?P<text>[\S]+)_')
-    code = re.compile(r'( |^)=(?P<text>[\S]+)=')
-    delete = re.compile(r'( |^)\+(?P<text>[\S]+)\+')
-    verbatim = re.compile(r'( |^)~(?P<text>[\S]+)~')
+    italic = re.compile(r'( |^)\*\*(?P<text>[^ ].*?[^ ])\*\*( |$)')
+    underlined = re.compile(r'( |^)_(?P<text>[^ ].*?[^ ])_( |$)')
+    code = re.compile(r'( |^)=(?P<text>[^ ].*?[^ ])=( |$)')
+    delete = re.compile(r'( |^)\+(?P<text>[^ ].*?[^ ])\+( |$)')
+    verbatim = re.compile(r'( |^)~(?P<text>[^ ].*?[^ ])~( |$)')
     image = re.compile(r'\[\[(?P<text>.+?)[.](jpg | png | gif)\]\]')
     link = re.compile(r'\[\[(?P<href>https?://.+?)\](?:\[(?P<text>.+?)\])?\]')
     origin_link = re.compile(
@@ -76,7 +76,13 @@ class InlineElement(object):
 
     def to_html(self):
         def _match(match):
-            return self.label.format(text=match.group('text'))
+            text = self.label.format(text=match.group('text'))
+            match_string = match.group(0)
+            if match_string.startswith(' '):
+                text = ' ' + text
+            if match_string.endswith(' '):
+                text = text + ' '
+            return text
 
         return self.regex.sub(_match, self.text)
 
