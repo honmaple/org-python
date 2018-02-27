@@ -6,7 +6,7 @@
 # Author: jianglin
 # Email: xiyang0807@gmail.com
 # Created: 2018-02-26 11:44:43 (CST)
-# Last Update: Tuesday 2018-02-27 10:12:06 (CST)
+# Last Update: Tuesday 2018-02-27 10:58:45 (CST)
 #          By:
 # Description:
 # ********************************************************************************
@@ -233,17 +233,20 @@ class OrderList(List):
     regex = Regex.order_list
 
 
+class TableCell(Element):
+    label = '<td>{text}</td>'
+
+
 class TableRow(Element):
     label = '<tr>\n{text}\n</tr>'
 
     def append(self, child):
         m = Regex.table.match(child)
         cells = [c for c in m.group('cells').split('|') if c]
-        child = ''
         for cell in cells:
-            child += '<td>{text}</td>'.format(text=cell.strip())
-        child = Text(child)
-        self.children.append(child)
+            child = TableCell(self)
+            child.append(cell.strip())
+            self.children.append(child)
 
 
 class Table(Element):
@@ -261,7 +264,7 @@ class Table(Element):
             text = '\n'.join([ch.to_html() for ch in self.children])
             text = td.sub(lambda match: match.group(0).replace('td', 'th'),
                           text)
-            self.children = [Text(text)]
+            self.children = [Text(text, False)]
         else:
             row = TableRow(self)
             row.append(child)
