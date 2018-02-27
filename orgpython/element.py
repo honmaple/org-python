@@ -1,249 +1,26 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# **************************************************************************
-# Copyright © 2017 jianglin
-# File Name: orgpython.py
+# ********************************************************************************
+# Copyright © 2018 jianglin
+# File Name: element.py
 # Author: jianglin
 # Email: xiyang0807@gmail.com
-# Created: 2017-07-12 21:21:00 (CST)
-# Last Update:星期二 2017-10-17 10:38:25 (CST)
+# Created: 2018-02-26 11:44:43 (CST)
+# Last Update: Tuesday 2018-02-27 10:12:06 (CST)
 #          By:
 # Description:
-# **************************************************************************
+# ********************************************************************************
 import re
 from time import time
+from textwrap import dedent
 from collections import OrderedDict
 
-
-class Regex(object):
-    blankline = re.compile(r'^$')
-    newline = re.compile(r'\\$')
-    heading = re.compile(r'^(?P<level>\*+)\s+(?P<title>.+)$')
-    comment = re.compile(r'^(\s*)#(.*)$')
-    bold = re.compile(r'( |^)\*(?P<text>[^ ].*?[^ ])\*( |$)')
-    # italic = re.compile(r'(\*\*|/)(?P<text>[\S]+?)(\*\*|/)')
-    italic = re.compile(r'( |^)\*\*(?P<text>[^ ].*?[^ ])\*\*( |$)')
-    underlined = re.compile(r'( |^)_(?P<text>[^ ].*?[^ ])_( |$)')
-    code = re.compile(r'( |^)=(?P<text>[^ ].*?[^ ])=( |$)')
-    delete = re.compile(r'( |^)\+(?P<text>[^ ].*?[^ ])\+( |$)')
-    verbatim = re.compile(r'( |^)~(?P<text>[^ ].*?[^ ])~( |$)')
-    image = re.compile(r'\[\[(?P<text>.+?)[.](jpg | png | gif)\]\]')
-    link = re.compile(r'\[\[(?P<href>https?://.+?)\](?:\[(?P<text>.+?)\])?\]')
-    origin_link = re.compile(
-        r'(http|ftp|https):\/\/[\w\-_]+(\.[\w\-_]+)+([\w\-\.,@?^=%&amp;:/~\+#]*[\w\-\@?^=%&amp;/~\+#])?'
-    )
-    fn = re.compile(r'\[fn:(?P<text>.+?)\]')
-    hr = re.compile(r'^\s*\-{5,}\s*')
-
-    begin_example = re.compile(r'\s*#\+BEGIN_EXAMPLE$')
-    end_example = re.compile(r'\s*#\+END_EXAMPLE$')
-
-    begin_verse = re.compile(r'\s*#\+BEGIN_VERSE$')
-    end_verse = re.compile(r'\s*#\+END_VERSE$')
-
-    begin_center = re.compile(r'\s*#\+BEGIN_CENTER$')
-    end_center = re.compile(r'\s*#\+END_CENTER$')
-
-    begin_quote = re.compile(r'\s*#\+BEGIN_QUOTE$')
-    end_quote = re.compile(r'\s*#\+END_QUOTE$')
-
-    begin_src = re.compile(r'\s*#\+BEGIN_SRC\s+(?P<lang>.+)$')
-    end_src = re.compile(r'\s*#\+END_SRC$')
-
-    any_depth = re.compile(r'(?P<depth>\s*)(?P<title>.+)$')
-    order_list = re.compile(r'(?P<depth>\s*)\d+(\.|\))\s+(?P<title>.+)$')
-    unorder_list = re.compile(r'(?P<depth>\s*)(-|\+)\s+(?P<title>.+)$')
-    checkbox = re.compile(r'[[](?P<check>.+)[]]\s+(?P<title>.+)$')
-
-    table = re.compile(r'\s*\|(?P<cells>(.+\|)+)s*$')
-    table_sep = re.compile(r'^(\s*)\|((?:\+|-)*?)\|?$')
-    table_setting = re.compile(r'\s*#\+ATTR_HTML:\s*:class\s*(?P<cls>.+)$')
-
-    attr = re.compile(r'^(\s*)#\+(.*)$')
+from .inline import Text
+from .regex import Regex
 
 
 class NotBeginError(Exception):
     pass
-
-
-class InlineElement(object):
-    label = '{text}'
-
-    def __init__(self, text, regex):
-        self.text = text
-        self.regex = regex
-        self.children = []
-
-    def to_html(self):
-        def _match(match):
-            text = self.label.format(text=match.group('text'))
-            match_string = match.group(0)
-            if match_string.startswith(' '):
-                text = ' ' + text
-            if match_string.endswith(' '):
-                text = text + ' '
-            return text
-
-        return self.regex.sub(_match, self.text)
-
-    def __str__(self):
-        return '{}({})'.format(self.__class__.__name__, self.text.strip())
-
-
-class Fn(InlineElement):
-    '''
-    <sup><a id="fnr.1" class="footref" href="#fn.1">1</a></sup>
-    '''
-    label = '<sup><a id="fnr:{text}" class="footref" href="#fn.{text}">{text}</a></sup>'
-
-
-class Underlined(InlineElement):
-    label = '<span style="text-decoration:underline">{text}</span>'
-
-
-class Bold(InlineElement):
-    label = '<b>{text}</b>'
-
-
-class Italic(InlineElement):
-    label = '<i>{text}</i>'
-
-
-class Code(InlineElement):
-    label = '<code>{text}</code>'
-
-
-class Delete(InlineElement):
-    label = '<del>{text}</del>'
-
-
-class Verbatim(InlineElement):
-    label = '<code>{text}</code>'
-
-
-class NewLine(InlineElement):
-    def to_html(self):
-        return self.regex.sub('<br/>', self.text)
-
-
-class Image(InlineElement):
-    label = '<img src="{text}"/>'
-
-
-class Link(InlineElement):
-    label = '<a href="{href}">{text}</a>'
-
-    def to_html(self):
-        def _match(match):
-            if not match.group('text'):
-                return Image.label.format(text=match.group('href'))
-            return self.label.format(
-                href=match.group('href'), text=match.group('text'))
-
-        return self.regex.sub(_match, self.text)
-
-
-class OriginLink(InlineElement):
-    label = '<a href="{0}">{0}</a>'
-
-    def to_html(self):
-        def _match(match):
-            return self.label.format(match.group())
-
-        return self.regex.sub(_match, self.text)
-
-
-class Heading(InlineElement):
-    label = '<h{level}>{title}</h{level}>'
-    label1 = '<h{level} id="{tid}">{title}</h{level}>'
-    regex = Regex.heading
-
-    def __init__(self, text, offset=0, toc=False):
-        self.text = text
-        self.offset = offset
-        self._toc = toc
-        self.children = []
-
-    def to_html(self):
-        m = Regex.heading.match(self.text)
-        level = len(m.group('level')) + self.offset
-        title = m.group('title')
-        text = self.label.format(level=level, title=title)
-        if self._toc:
-            tid = self.heading_id(text)
-            text = self.label1.format(level=level, tid=tid, title=title)
-            self.toc = '{}- <a href="#{}">{}</a>'.format(' ' * level, tid,
-                                                         title)
-        return text
-
-    def heading_id(self, text):
-        return 'org-{}'.format(int(time() * 10000))
-
-
-class Text(InlineElement):
-    regex = OrderedDict({
-        'comment': Regex.comment,
-        'newline': Regex.newline,
-        'italic': Regex.italic,
-        'bold': Regex.bold,
-        'underlined': Regex.underlined,
-        'code': Regex.code,
-        'delete': Regex.delete,
-        'verbatim': Regex.verbatim,
-        'fn': Regex.fn,
-        'link': Regex.link,
-        'image': Regex.image,
-    })
-
-    def __init__(self, text, no_parse=False):
-        self.text = text
-        self.no_parse = no_parse
-
-    def parse(self, text):
-        if not isinstance(text, str):
-            text = text.to_html()
-        if self.no_parse:
-            return text
-        for parse, regex in self.regex.items():
-            if regex.search(text):
-                return getattr(self, 'parse_' + parse)(text, regex)
-        return text
-
-    def parse_comment(self, text, regex):
-        return text
-
-    def parse_newline(self, text, regex):
-        return self.parse(NewLine(text, regex))
-
-    def parse_italic(self, text, regex):
-        return self.parse(Italic(text, regex))
-
-    def parse_bold(self, text, regex):
-        return self.parse(Bold(text, regex))
-
-    def parse_underlined(self, text, regex):
-        return self.parse(Underlined(text, regex))
-
-    def parse_code(self, text, regex):
-        return self.parse(Code(text, regex))
-
-    def parse_delete(self, text, regex):
-        return self.parse(Delete(text, regex))
-
-    def parse_verbatim(self, text, regex):
-        return self.parse(Verbatim(text, regex))
-
-    def parse_fn(self, text, regex):
-        return self.parse(Fn(text, regex))
-
-    def parse_link(self, text, regex):
-        return self.parse(Link(text, regex))
-
-    def parse_image(self, text, regex):
-        return self.parse(Image(text, regex))
-
-    def to_html(self):
-        return self.parse(self.text)
 
 
 class Element(object):
@@ -269,6 +46,33 @@ class Element(object):
         return self.__class__.__name__ + '(' + ','.join(str_children) + ')'
 
 
+class Heading(Element):
+    label = '<h{level}>{title}</h{level}>'
+    label1 = '<h{level} id="{tid}">{title}</h{level}>'
+    regex = Regex.heading
+
+    def __init__(self, text, offset=0, toc=False):
+        self.text = text
+        self.offset = offset
+        self._toc = toc
+        self.children = []
+
+    def to_html(self):
+        m = self.regex.match(self.text)
+        level = len(m.group('level')) + self.offset
+        title = m.group('title')
+        text = self.label.format(level=level, title=title)
+        if self._toc:
+            tid = self.heading_id(text)
+            text = self.label1.format(level=level, tid=tid, title=title)
+            self.toc = '{}- <a href="#{}">{}</a>'.format(' ' * level, tid,
+                                                         title)
+        return text
+
+    def heading_id(self, text):
+        return 'org-{}'.format(int(time() * 10000))
+
+
 class Src(Element):
     label = '<pre class="{lang}">\n{text}\n</pre>'
 
@@ -281,11 +85,12 @@ class Src(Element):
     def append(self, child):
         if self.children or child:
             if isinstance(child, str):
-                child = Text(child, True)
+                child = Text(child, False)
             self.children.append(child)
 
     def to_html(self):
         text = '\n'.join([child.to_html() for child in self.children])
+        text = dedent(text)
         return self.label.format(lang=self.lang, text=text)
 
     def end(self, text):
@@ -295,6 +100,22 @@ class Src(Element):
 class Example(Src):
     def end(self, text):
         return Regex.end_example.match(text)
+
+
+class Export(Src):
+    label = '{text}'
+
+    def __init__(self, parent):
+        self.parent = parent
+        self.flag = False
+        self.children = []
+
+    def to_html(self):
+        text = '\n'.join([child.to_html() for child in self.children])
+        return self.label.format(text=text)
+
+    def end(self, text):
+        return Regex.end_export.match(text)
 
 
 class Verse(Element):
@@ -478,11 +299,6 @@ class Paragraph(Element):
     label = '<p>{text}</p>'
 
 
-class Re(object):
-    def match(self, text):
-        pass
-
-
 class Org(object):
     class _end:
         def __init__(self, _self):
@@ -492,21 +308,22 @@ class Org(object):
             _self = self._self
             return hasattr(_self.current, 'flag') and _self.current.flag
 
-    regex = OrderedDict({
-        'end': _end,
-        'heading': Regex.heading,
-        'unorderlist': Regex.unorder_list,
-        'orderlist': Regex.order_list,
-        'table': Regex.table,
-        'quote': Regex.begin_quote,
-        'verse': Regex.begin_verse,
-        'center': Regex.begin_center,
-        'example': Regex.begin_example,
-        'src': Regex.begin_src,
-        'hr': Regex.hr,
-        'attr': Regex.attr,
-        'blankline': Regex.blankline,
-    })
+    regex = OrderedDict([
+        ('end', _end),
+        ('heading', Regex.heading),
+        ('unorderlist', Regex.unorder_list),
+        ('orderlist', Regex.order_list),
+        ('table', Regex.table),
+        ('quote', Regex.begin_quote),
+        ('verse', Regex.begin_verse),
+        ('center', Regex.begin_center),
+        ('example', Regex.begin_example),
+        ('src', Regex.begin_src),
+        ('export', Regex.begin_export),
+        ('hr', Regex.hr),
+        ('attr', Regex.attr),
+        ('blankline', Regex.blankline),
+    ])
     del _end
 
     def __init__(self, text, offset=0, toc=False, parse=True):
@@ -529,8 +346,7 @@ class Org(object):
             if callable(regex):
                 regex = regex(self)
             if regex.match(text):
-                getattr(self, 'parse_' + parse)(text)
-                return
+                return getattr(self, 'parse_' + parse)(text)
         if isinstance(self.current, Paragraph):
             self.current.append(text.strip())
         else:
@@ -623,6 +439,10 @@ class Org(object):
         element = Verse(self.current)
         self.begin_init(element)
 
+    def parse_export(self, text):
+        element = Export(self.current)
+        self.begin_init(element)
+
     def parse_attr(self, text):
         pass
 
@@ -640,7 +460,3 @@ class Org(object):
 
     def __str__(self):
         return 'Org(' + ','.join([str(child) for child in self.children]) + ')'
-
-
-def org_to_html(text, offset=0, toc=True):
-    return Org(text, offset, toc).to_html()

@@ -6,39 +6,37 @@
 # Author: jianglin
 # Email: xiyang0807@gmail.com
 # Created: 2017-03-16 16:28:32 (CST)
-# Last Update:星期三 2017-7-26 11:3:4 (CST)
+# Last Update: Monday 2018-02-26 17:10:35 (CST)
 #          By:
 # Description:
 # **************************************************************************
 import unittest
 # from org1 import org_to_html
-from orgpython import org_to_html
-from orgpython import Org
+from org_python import org_to_html
+from org_python import Org
+from org_python.element import Heading
 
 
 class TestOrg(unittest.TestCase):
     def test_heading(self):
-        org = Org('* heading1\n** heading2', toc=True)
-        self.assertEqual(
-            str(org), 'Org(Heading(* heading1),Heading(** heading2))')
+        text = ["* heading1", "** heading2", "*** heading3", "* heading4",
+                "heading5"]
+        text = '\n'.join(text)
+        org = Org(text)
+        count = [i for i in org.children if isinstance(i, Heading)]
+        self.assertEqual(len(count), 4)
 
-    def test_bold(self):
+    def test_text(self):
         text = '''
-        *bold* bold*
-        bold* bold*
-        *bold* *bold*
+        *bold* bold* *bold\* \*bold\* \*bold*
+        **italic** italic** **italic\** \**italic\** \**italic**
+        =code= code= =code\= \=code\= \=code=
+        ~code~ code~ ~code\~ \~code\~ \~cod~
         '''
         html = org_to_html(text)
-        self.assertEqual(html.count('<b>'), 3)
-
-    def test_italic(self):
-        text = '''
-        **italic** italic*
-        italic* *1* italic*
-        **italic** **italic**
-        '''
-        html = org_to_html(text)
-        self.assertEqual(html.count('<i>'), 3)
+        self.assertEqual(html.count('<b>'), 2)
+        self.assertEqual(html.count('<i>'), 2)
+        self.assertEqual(html.count('<code>'), 4)
 
 
 if __name__ == '__main__':

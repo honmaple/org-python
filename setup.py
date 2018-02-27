@@ -6,7 +6,7 @@
 # Author: jianglin
 # Email: xiyang0807@gmail.com
 # Created: 2017-07-14 22:07:06 (CST)
-# Last Update:星期二 2017-10-17 10:45:0 (CST)
+# Last Update: Tuesday 2018-02-27 10:39:59 (CST)
 #          By:
 # Description:
 # **************************************************************************
@@ -20,14 +20,14 @@ def read(fname):
 
 setup(
     name='org-python',
-    version='0.1.5',
+    version='0.1.6',
     url='https://github.com/honmaple/org-python',
     license='BSD',
     author='honmaple',
     author_email='xiyang0807@gmail.com',
     description='convert orgmode to html based on python.',
     long_description=read('README.rst'),
-    py_modules=['orgpython'],
+    packages=['orgpython'],
     zip_safe=False,
     include_package_data=True,
     platforms='any',
