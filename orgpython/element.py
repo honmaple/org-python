@@ -6,7 +6,7 @@
 # Author: jianglin
 # Email: xiyang0807@gmail.com
 # Created: 2018-02-26 11:44:43 (CST)
-# Last Update: Tuesday 2018-02-27 10:58:45 (CST)
+# Last Update: Wednesday 2018-02-28 16:58:14 (CST)
 #          By:
 # Description:
 # ********************************************************************************
@@ -27,23 +27,32 @@ class Element(object):
     label = '{text}'
     regex = None
 
-    def __init__(self, parent):
-        self.parent = parent
+    def __init__(self, text, escape=False):
+        self.text = text
         self.children = []
+        self.parent = self
+        self.escape = escape
 
     def append(self, child):
         if self.children or child:
             if isinstance(child, str):
-                child = Text(child)
+                child = Text(child, escape=self.escape)
             self.children.append(child)
 
     def to_html(self):
-        text = '\n'.join([child.to_html() for child in self.children])
+        if isinstance(self.children, list):
+            text = '\n'.join([child.to_html() for child in self.children])
+        else:
+            text = self.children.to_html()
+        text = dedent(text)
         return self.label.format(text=text)
 
     def __str__(self):
         str_children = [str(child) for child in self.children]
         return self.__class__.__name__ + '(' + ','.join(str_children) + ')'
+
+    def __repr__(self):
+        return self.__str__()
 
 
 class Heading(Element):
@@ -54,7 +63,7 @@ class Heading(Element):
     def __init__(self, text, offset=0, toc=False):
         self.text = text
         self.offset = offset
-        self._toc = toc
+        self.toc = toc
         self.children = []
 
     def to_html(self):
@@ -62,31 +71,60 @@ class Heading(Element):
         level = len(m.group('level')) + self.offset
         title = m.group('title')
         text = self.label.format(level=level, title=title)
-        if self._toc:
+        if self.toc:
             tid = self.heading_id(text)
             text = self.label1.format(level=level, tid=tid, title=title)
-            self.toc = '{}- <a href="#{}">{}</a>'.format(' ' * level, tid,
-                                                         title)
+            self.toc.append('{}- <a href="#{}">{}</a>'.format(' ' * level, tid,
+                                                              title))
         return text
 
     def heading_id(self, text):
         return 'org-{}'.format(int(time() * 10000))
 
 
-class Src(Element):
-    label = '<pre class="{lang}">\n{text}\n</pre>'
+class OutlineElement(object):
+    def __init__(self, text, escape=False):
+        self.text = text
+        self.parent = self
+        self.children = Org("", escape=escape)
+        self.escape = escape
+        self.init()
 
-    def __init__(self, parent, lang='example'):
-        self.parent = parent
-        self.lang = lang
-        self.flag = False
-        self.children = []
+    def init(self):
+        '''
+        cover default params.
+        '''
 
     def append(self, child):
-        if self.children or child:
-            if isinstance(child, str):
-                child = Text(child, False)
-            self.children.append(child)
+        self.children.append(child)
+
+    def to_html(self):
+        if isinstance(self.children, list):
+            text = '\n'.join([child.to_html() for child in self.children])
+        else:
+            text = self.children.to_html()
+        return self.label.format(text=text)
+
+    def end(self, text):
+        return not self.regex.match(text)
+
+    def __str__(self):
+        return self.__class__.__name__ + '(' + str(self.children) + ')'
+
+    def __repr__(self):
+        return self.__str__()
+
+
+class Src(OutlineElement):
+    label = '<pre class="{lang}">\n{text}\n</pre>'
+    regex = Regex.begin_src
+
+    def init(self):
+        self.children = []
+        self.lang = self.regex.match(self.text).group('lang')
+
+    def append(self, child):
+        self.children.append(Text(child, False))
 
     def to_html(self):
         text = '\n'.join([child.to_html() for child in self.children])
@@ -97,119 +135,124 @@ class Src(Element):
         return Regex.end_src.match(text)
 
 
-class Example(Src):
+class Example(OutlineElement):
+    label = '<pre class="example">\n{text}\n</pre>'
+    regex = Regex.begin_example
+
+    def init(self):
+        self.children = []
+
+    def append(self, child):
+        self.children.append(Text(child, False))
+
     def end(self, text):
         return Regex.end_example.match(text)
 
 
-class Export(Src):
+class Export(OutlineElement):
     label = '{text}'
+    regex = Regex.begin_export
 
-    def __init__(self, parent):
-        self.parent = parent
-        self.flag = False
+    def init(self):
         self.children = []
 
-    def to_html(self):
-        text = '\n'.join([child.to_html() for child in self.children])
-        return self.label.format(text=text)
+    def append(self, child):
+        self.children.append(Text(child, True))
 
     def end(self, text):
         return Regex.end_export.match(text)
 
 
-class Verse(Element):
+class Verse(OutlineElement):
     label = '<p class="org-verse">\n{text}\n</p>'
+    regex = Regex.begin_verse
 
-    def __init__(self, parent):
-        self.parent = parent
-        self.flag = False
+    def init(self):
         self.children = []
 
+    def append(self, child):
+        self.children.append(Text(child, True))
+
     def to_html(self):
-        text = '<br/>\n'.join([child.to_html() for child in self.children])
+        text = '<br/>'.join([child.to_html() for child in self.children])
         return self.label.format(text=text)
 
     def end(self, text):
         return Regex.end_verse.match(text)
 
 
-class Center(Element):
+class Center(OutlineElement):
     label = '<div class="org-center">\n{text}\n</div>'
-
-    def __init__(self, parent):
-        self.parent = parent
-        self.flag = False
-        self.children = [Org('', parse=False)]
-
-    def append(self, child):
-        self.children[0].parse(child)
+    regex = Regex.begin_center
 
     def end(self, text):
         return Regex.end_center.match(text)
 
 
-class BlockQuote(Element):
+class BlockQuote(OutlineElement):
     label = '<blockquote>\n{text}\n</blockquote>'
-
-    def __init__(self, parent):
-        self.parent = parent
-        self.flag = False
-        self.children = [Org('', parse=False)]
-
-    def append(self, child):
-        self.children[0].parse(child)
+    regex = Regex.begin_quote
 
     def end(self, text):
         return Regex.end_quote.match(text)
 
 
-class ListItem(Element):
+class CheckBox(Element):
+    label = '<input type="checkbox" />{text}'
+    label1 = '<input type="checkbox" checked="checked" />{text}'
+    regex = Regex.checkbox
+
+    def to_html(self):
+        checkbox = self.regex.match(self.text)
+        label = self.label
+        if checkbox.group('check') == 'X':
+            label = self.label1
+        text = label.format(text=checkbox.group('title'))
+        return text
+
+
+class ListItem(OutlineElement):
     label = '<li>{text}</li>'
 
-    def __init__(self, parent, depth):
-        self.parent = parent
-        self.depth = depth
-        self.flag = False
-        self.children = [Org('', parse=False)]
+    def init(self):
+        self.append(self.text)
 
     def append(self, child):
-        if not self.children[0].children:
-            self.children[0].append(Text(child))
-        else:
-            self.children[0].parse(child)
+        if not self.children.children:
+            child = Text(child, escape=self.escape)
+        self.children.append(child)
 
 
-class List(Element):
+class List(OutlineElement):
     regex = None
 
-    def __init__(self, parent, depth):
-        self.parent = parent
-        self.depth = depth
-        self.flag = False
+    def init(self):
+        self.depth = len(self.regex.match(self.text).group('depth'))
         self.children = []
-        self.current = ListItem(self, depth)
+        self.append(self.text)
+
+    def item(self, m):
+        '''
+        item first line
+        '''
+        title = m.group('title')
+        if CheckBox.regex.match(title):
+            title = CheckBox(title).to_html()
+        return title
 
     def append(self, child):
-        if self.regex.match(child):
-            m = self.regex.match(child)
+        m = self.regex.match(child)
+        if m is not None:
             depth = len(m.group('depth'))
-            title = m.group('title')
-            checkbox = Regex.checkbox.match(title)
-            if checkbox:
-                title = '<input type="checkbox" />{}'
-                if checkbox.group('check') == 'X':
-                    title = '<input type="checkbox" checked="checked" />{}'
-                title = title.format(checkbox.group('title'))
+            title = self.item(m)
+
             if depth == self.depth:
-                element = ListItem(self.current, depth)
-                element.append(title)
+                element = ListItem(title, escape=self.escape)
                 self.children.append(element)
-                self.current = element
             elif depth > self.depth:
-                self.current.append(child)
+                self.children[-1].append(child)
         else:
-            self.current.append(child)
+            self.children[-1].append(child)
 
     def end(self, text):
         if not text:
@@ -239,23 +282,26 @@ class TableCell(Element):
 
 class TableRow(Element):
     label = '<tr>\n{text}\n</tr>'
+    regex = Regex.table
 
-    def append(self, child):
-        m = Regex.table.match(child)
+    def to_html(self):
+        m = self.regex.match(self.text)
         cells = [c for c in m.group('cells').split('|') if c]
         for cell in cells:
-            child = TableCell(self)
+            child = TableCell(cell, escape=self.escape)
             child.append(cell.strip())
             self.children.append(child)
+        text = ''.join([child.to_html() for child in self.children])
+        return self.label.format(text=text)
 
 
-class Table(Element):
+class Table(OutlineElement):
     label = '<table>\n{text}\n</table>'
+    regex = Regex.table
 
-    def __init__(self, parent):
-        self.parent = parent
-        self.flag = False
+    def init(self):
         self.children = []
+        self.append(self.text)
 
     def append(self, child):
         if Regex.table_sep.match(child):
@@ -264,36 +310,35 @@ class Table(Element):
             text = '\n'.join([ch.to_html() for ch in self.children])
             text = td.sub(lambda match: match.group(0).replace('td', 'th'),
                           text)
-            self.children = [Text(text, False)]
+            self.children = [Text(text, False, False)]
         else:
-            row = TableRow(self)
-            row.append(child)
-            self.children.append(row)
+            self.children.append(TableRow(child, escape=self.escape))
+
+    def to_html(self):
+        text = '\n'.join([child.to_html() for child in self.children])
+        return self.label.format(text=text)
 
     def end(self, text):
-        return not Regex.table.match(text)
+        return not self.regex.match(text)
 
 
 class Toc(Element):
-    def __init__(self, parent):
-        self.parent = parent
-        self.flag = False
-        self.children = []
-
     def append(self, child):
         self.children.append(child)
 
     def to_html(self):
-        text = '\n'.join([child.toc for child in self.children])
+        text = '\n'.join(self.children)
         if text:
             text = ('<div id="table-of-contents">'
                     '<h2>Table of Contents</h2>'
                     '<div id="text-table-of-contents">{}\n</div></div>\n\n'
-                    ).format(Org(text).to_html())
+                    ).format(Org(text, escape=False).to_html())
         return text
 
 
 class Hr(Element):
+    regex = Regex.hr
+
     def to_html(self):
         return '<hr/>'
 
@@ -302,162 +347,114 @@ class Paragraph(Element):
     label = '<p>{text}</p>'
 
 
+class BlankLine(Element):
+    regex = Regex.blankline
+
+    def to_html(self):
+        return ''
+
+
+class Attr(Element):
+    regex = Regex.attr
+
+
 class Org(object):
-    class _end:
-        def __init__(self, _self):
-            self._self = _self
-
-        def match(self, text):
-            _self = self._self
-            return hasattr(_self.current, 'flag') and _self.current.flag
-
     regex = OrderedDict([
-        ('end', _end),
-        ('heading', Regex.heading),
-        ('unorderlist', Regex.unorder_list),
-        ('orderlist', Regex.order_list),
-        ('table', Regex.table),
-        ('quote', Regex.begin_quote),
-        ('verse', Regex.begin_verse),
-        ('center', Regex.begin_center),
-        ('example', Regex.begin_example),
-        ('src', Regex.begin_src),
-        ('export', Regex.begin_export),
-        ('hr', Regex.hr),
-        ('attr', Regex.attr),
-        ('blankline', Regex.blankline),
+        ('heading', Heading),
+        ('unorderlist', UnorderList),
+        ('orderlist', OrderList),
+        ('table', Table),
+        ('quote', BlockQuote),
+        ('verse', Verse),
+        ('center', Center),
+        ('example', Example),
+        ('src', Src),
+        ('export', Export),
+        ('hr', Hr),
+        ('attr', Attr),
+        ('blankline', BlankLine),
     ])
-    del _end
 
-    def __init__(self, text, offset=0, toc=False, parse=True):
+    def __init__(self, text, offset=0, toc=False, escape=True):
         self.text = text
         self.children = []
         self.parent = self
         self.current = self
         self.offset = offset
-        self.toc = Toc(self)
-        self.toc.flag = toc
-        if parse:
-            self._parse(text)
+        self.escape = escape
+        self.toc = Toc(self) if toc else None
 
-    def _parse(self, text):
-        for line in text.splitlines():
-            self.parse(line.rstrip())
-
-    def parse(self, text):
-        for parse, regex in self.regex.items():
-            if callable(regex):
-                regex = regex(self)
-            if regex.match(text):
-                return getattr(self, 'parse_' + parse)(text)
-        if isinstance(self.current, Paragraph):
-            self.current.append(text.strip())
-        else:
-            while isinstance(self.current, Paragraph):
-                self.current = self.current.parent
-            element = Paragraph(self.current)
-            element.append(text.strip())
-            self.children.append(element)
-            self.current = element
-
-    def begin_init(self, element):
-        self.current.append(element)
-        self.current = element
-        self.current.flag = True
-
-    def end_init(self, element):
-        if not self.current.flag:
-            raise NotBeginError
-        self.current.flag = False
-        while not isinstance(self.current, element):
-            if isinstance(self.current, Org):
-                raise NotBeginError
+    def parse_blankline(self, text, element):
+        while isinstance(self.current, Paragraph):
             self.current = self.current.parent
-        self.current = self.current.parent
+        element = element(text)
+        element.parent = self
+        return element
+
+    def parse_heading(self, text, element):
+        element = element(text, self.offset, self.toc)
+        element.parent = self
+        return element
+
+    def parse_hr(self, text, element):
+        element = element(text)
+        element.parent = self
+        return element
+
+    def parse_attr(self, text, element):
+        pass
+
+    def parse_paragraph(self, text):
+        element = Paragraph(text, escape=self.escape)
+        element.append(text)
+        element.parent = self
+        self.current = element
+        return element
+
+    def parse_outline(self, text, element):
+        element = element(text, escape=self.escape)
+        element.parent = self
+        self.current = element
+        return element
 
     def parse_end(self, text):
         if not self.current.end(text):
+            return self.current.append(text)
+
+        current = self.current
+        while not isinstance(self.current, self.current.__class__):
+            self.current = self.current.parent
+        self.current = self.current.parent
+        # List , Table need parse last line
+        if isinstance(current, (List, Table)):
+            return self.parse(text)
+
+    def parse(self, text):
+        for name, element in self.regex.items():
+            if isinstance(self.current, OutlineElement):
+                return self.parse_end(text)
+            if element.regex.match(text):
+                name = "parse_" + name
+                return getattr(self, name)(text, element) if hasattr(
+                    self, name) else self.parse_outline(text, element)
+
+        if isinstance(self.current, Paragraph):
             self.current.append(text)
-        else:
-            e = self.current
-            self.end_init(self.current.__class__)
-            if isinstance(e, (UnorderList, OrderList)):
-                self.parse(text)
-
-    def parse_blankline(self, text):
+            return
         while isinstance(self.current, Paragraph):
             self.current = self.current.parent
-        self.children.append(Text(''))
-
-    def parse_heading(self, text):
-        element = Heading(text, self.offset, self.toc.flag)
-        self.toc.append(element)
-        self.children.append(element)
-
-    def parse_hr(self, text):
-        element = Hr(self)
-        self.children.append(element)
-
-    def parse_unorderlist(self, text):
-        while isinstance(self.current, Paragraph):
-            self.current = self.current.parent
-        m = Regex.unorder_list.match(text)
-        depth = len(m.group('depth'))
-        element = UnorderList(self.current, depth)
-        element.append(text)
-        self.begin_init(element)
-
-    def parse_orderlist(self, text):
-        while isinstance(self.current, Paragraph):
-            self.current = self.current.parent
-        m = Regex.order_list.match(text)
-        depth = len(m.group('depth'))
-        element = OrderList(self.current, depth)
-        element.append(text)
-        self.begin_init(element)
-
-    def parse_table(self, text):
-        element = Table(self.current)
-        element.append(text)
-        self.begin_init(element)
-
-    def parse_src(self, text):
-        lang = Regex.begin_src.match(text).group('lang')
-        element = Src(self.current, lang)
-        self.begin_init(element)
-
-    def parse_example(self, text):
-        element = Example(self.current)
-        self.begin_init(element)
-
-    def parse_quote(self, text):
-        element = BlockQuote(self.current)
-        self.begin_init(element)
-
-    def parse_center(self, text):
-        element = Center(self.current)
-        self.begin_init(element)
-
-    def parse_verse(self, text):
-        element = Verse(self.current)
-        self.begin_init(element)
-
-    def parse_export(self, text):
-        element = Export(self.current)
-        self.begin_init(element)
-
-    def parse_attr(self, text):
-        pass
+        return self.parse_paragraph(text)
 
     def append(self, child):
         if isinstance(child, str):
-            child = Text(child)
-        self.children.append(child)
-        child.parent = self
+            child = self.parse(child)
+        if child and (not self.children or child != self.children[-1]):
+            self.children.append(child)
 
     def to_html(self):
+        [self.append(line.rstrip()) for line in self.text.splitlines()]
         text = '\n'.join([child.to_html() for child in self.children])
-        if self.toc.flag:
+        if self.toc:
             text = self.toc.to_html() + text
         return text
 

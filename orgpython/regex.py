@@ -6,7 +6,7 @@
 # Author: jianglin
 # Email: xiyang0807@gmail.com
 # Created: 2018-02-26 11:42:14 (CST)
-# Last Update: Tuesday 2018-02-27 10:35:46 (CST)
+# Last Update: Wednesday 2018-02-28 11:07:47 (CST)
 #          By:
 # Description:
 # ********************************************************************************
@@ -26,8 +26,11 @@ class Regex(object):
     delete = re.compile(_inline_regex.format('\+'))
     verbatim = re.compile(_inline_regex.format('~'))
 
-    image = re.compile(r'\[\[(?P<text>.+?)[.](jpg|png|gif)\]\]')
-    link = re.compile(r'\[\[(?P<href>https?://.+?)\](?:\[(?P<text>.+?)\])?\]')
+    # image = re.compile(r'\[\[(?P<text>.+?)[.](jpg|png|gif)\]\]')
+    # link = re.compile(r'\[\[(?P<href>https?://.+?)\](?:\[(?P<text>.+?)\])?\]')
+
+    image = re.compile(r'\[\[(?P<text>.+?)\]\]')
+    link = re.compile(r'\[\[(?P<href>.+?)\](?:\[(?P<text>.+?)\])?\]')
     origin_link = re.compile(
         r'(http|ftp|https):\/\/[\w\-_]+(\.[\w\-_]+)+([\w\-\.,@?^=%&amp;:/~\+#]*[\w\-\@?^=%&amp;/~\+#])?'
     )

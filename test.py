@@ -6,15 +6,15 @@
 # Author: jianglin
 # Email: xiyang0807@gmail.com
 # Created: 2017-03-16 16:28:32 (CST)
-# Last Update: Monday 2018-02-26 17:10:35 (CST)
+# Last Update: Wednesday 2018-02-28 17:02:36 (CST)
 #          By:
 # Description:
 # **************************************************************************
 import unittest
 # from org1 import org_to_html
-from org_python import org_to_html
-from org_python import Org
-from org_python.element import Heading
+from orgpython import org_to_html
+from orgpython import Org
+from orgpython.element import Heading
 
 
 class TestOrg(unittest.TestCase):
@@ -23,6 +23,7 @@ class TestOrg(unittest.TestCase):
                 "heading5"]
         text = '\n'.join(text)
         org = Org(text)
+        org.to_html()
         count = [i for i in org.children if isinstance(i, Heading)]
         self.assertEqual(len(count), 4)
 
