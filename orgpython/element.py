@@ -6,7 +6,7 @@
 # Author: jianglin
 # Email: xiyang0807@gmail.com
 # Created: 2018-02-26 11:44:43 (CST)
-# Last Update: Wednesday 2018-02-28 16:58:14 (CST)
+# Last Update: Wednesday 2018-02-28 21:36:04 (CST)
 #          By:
 # Description:
 # ********************************************************************************
@@ -203,11 +203,13 @@ class CheckBox(Element):
     regex = Regex.checkbox
 
     def to_html(self):
-        checkbox = self.regex.match(self.text)
+        m = self.regex.match(self.text)
         label = self.label
-        if checkbox.group('check') == 'X':
+        if m.group("check") == 'X':
             label = self.label1
-        text = label.format(text=checkbox.group('title'))
+        text = label.format(text=Text(
+            m.group("title"),
+            escape=self.escape, ).to_html())
         return text
 
 
@@ -215,10 +217,15 @@ class ListItem(OutlineElement):
     label = '<li>{text}</li>'
 
     def init(self):
+        '''
+        first line
+        '''
+        if CheckBox.regex.match(self.text):
+            self.text = CheckBox(self.text, escape=self.escape)
         self.append(self.text)
 
     def append(self, child):
-        if not self.children.children:
+        if not self.children.children and isinstance(child, str):
             child = Text(child, escape=self.escape)
         self.children.append(child)
 
@@ -231,20 +238,11 @@ class List(OutlineElement):
         self.children = []
         self.append(self.text)
 
-    def item(self, m):
-        '''
-        item first line
-        '''
-        title = m.group('title')
-        if CheckBox.regex.match(title):
-            title = CheckBox(title).to_html()
-        return title
-
     def append(self, child):
         m = self.regex.match(child)
         if m is not None:
             depth = len(m.group('depth'))
-            title = self.item(m)
+            title = m.group('title')
 
             if depth == self.depth:
                 element = ListItem(title, escape=self.escape)
