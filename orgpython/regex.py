@@ -6,7 +6,7 @@
 # Author: jianglin
 # Email: xiyang0807@gmail.com
 # Created: 2018-02-26 11:42:14 (CST)
-# Last Update: Wednesday 2018-02-28 11:07:47 (CST)
+# Last Update: Monday 2018-03-19 14:15:32 (CST)
 #          By:
 # Description:
 # ********************************************************************************
@@ -64,4 +64,4 @@ class Regex(object):
     table_sep = re.compile(r'^(\s*)\|((?:\+|-)*?)\|?$')
     table_setting = re.compile(r'\s*#\+ATTR_HTML:\s*:class\s*(?P<cls>.+)$')
 
-    attr = re.compile(r'^(\s*)#\+(.*)$')
+    attr = re.compile(r'^(\s*)#\+(.*): (.*)$')

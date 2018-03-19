@@ -6,7 +6,7 @@
 # Author: jianglin
 # Email: xiyang0807@gmail.com
 # Created: 2018-02-26 11:44:43 (CST)
-# Last Update: Wednesday 2018-02-28 21:36:04 (CST)
+# Last Update: Monday 2018-03-19 14:49:21 (CST)
 #          By:
 # Description:
 # ********************************************************************************
@@ -373,13 +373,15 @@ class Org(object):
         ('blankline', BlankLine),
     ])
 
-    def __init__(self, text, offset=0, toc=False, escape=True):
+    def __init__(self, text, offset=0, toc=False, escape=False):
         self.text = text
         self.children = []
         self.parent = self
         self.current = self
         self.offset = offset
         self.escape = escape
+        # startswith #+
+        self.attr = {'property': {}}
         self.toc = Toc(self) if toc else None
 
     def parse_blankline(self, text, element):
@@ -400,7 +402,16 @@ class Org(object):
         return element
 
     def parse_attr(self, text, element):
-        pass
+        m = element.regex.match(text)
+        if not m.group(1):
+            key, value = m.group(2), m.group(3)
+            r = self.attr
+            if key == "PROPERTY":
+                r = self.attr['property']
+                value = value.split(" ", 1)
+                value.append("")
+                key, value = value[0], value[1]
+            r.update(**{key.lower(): value})
 
     def parse_paragraph(self, text):
         element = Paragraph(text, escape=self.escape)
