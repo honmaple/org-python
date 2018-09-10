@@ -6,17 +6,22 @@
 # Author: jianglin
 # Email: xiyang0807@gmail.com
 # Created: 2018-02-26 11:44:43 (CST)
-# Last Update: Monday 2018-03-19 14:49:21 (CST)
+# Last Update: Monday 2018-09-10 10:26:44 (CST)
 #          By:
 # Description:
 # ********************************************************************************
 import re
-from time import time
 from textwrap import dedent
 from collections import OrderedDict
+from hashlib import sha1
 
 from .inline import Text
 from .regex import Regex
+
+try:
+    import pygments
+except ImportError:
+    pygments = None
 
 
 class NotBeginError(Exception):
@@ -74,12 +79,12 @@ class Heading(Element):
         if self.toc:
             tid = self.heading_id(text)
             text = self.label1.format(level=level, tid=tid, title=title)
-            self.toc.append('{}- <a href="#{}">{}</a>'.format(' ' * level, tid,
-                                                              title))
+            self.toc.append('{}- <a href="#{}">{}</a>'.format(
+                ' ' * level, tid, title))
         return text
 
     def heading_id(self, text):
-        return 'org-{}'.format(int(time() * 10000))
+        return 'org-{0}'.format(sha1(text.encode()).hexdigest()[:10])
 
 
 class OutlineElement(object):
@@ -129,13 +134,23 @@ class Src(OutlineElement):
     def to_html(self):
         text = '\n'.join([child.to_html() for child in self.children])
         text = dedent(text)
+        if pygments is not None:
+            return self.highlight(text)
         return self.label.format(lang=self.lang, text=text)
+
+    def highlight(self, text):
+        try:
+            lexer = pygments.lexers.get_lexer_by_name(self.lang)
+        except pygments.util.ClassNotFound:
+            lexer = pygments.lexers.guess_lexer(text)
+        formatter = pygments.formatters.HtmlFormatter()
+        return pygments.highlight(text, lexer, formatter)
 
     def end(self, text):
         return Regex.end_src.match(text)
 
 
-class Example(OutlineElement):
+class Example(Src):
     label = '<pre class="example">\n{text}\n</pre>'
     regex = Regex.begin_example
 
@@ -144,6 +159,11 @@ class Example(OutlineElement):
 
     def append(self, child):
         self.children.append(Text(child, False))
+
+    def highlight(self, text):
+        lexer = pygments.lexers.guess_lexer(text)
+        formatter = pygments.formatters.HtmlFormatter()
+        return pygments.highlight(text, lexer, formatter)
 
     def end(self, text):
         return Regex.end_example.match(text)
@@ -207,9 +227,11 @@ class CheckBox(Element):
         label = self.label
         if m.group("check") == 'X':
             label = self.label1
-        text = label.format(text=Text(
-            m.group("title"),
-            escape=self.escape, ).to_html())
+        text = label.format(
+            text=Text(
+                m.group("title"),
+                escape=self.escape,
+            ).to_html())
         return text
 
 

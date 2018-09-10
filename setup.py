@@ -6,7 +6,7 @@
 # Author: jianglin
 # Email: xiyang0807@gmail.com
 # Created: 2017-07-14 22:07:06 (CST)
-# Last Update: Monday 2018-03-19 14:51:13 (CST)
+# Last Update: Monday 2018-09-10 10:28:23 (CST)
 #          By:
 # Description:
 # **************************************************************************
@@ -20,7 +20,7 @@ def read(fname):
 
 setup(
     name='org-python',
-    version='0.2.0',
+    version='0.2.1',
     url='https://github.com/honmaple/org-python',
     license='BSD',
     author='honmaple',

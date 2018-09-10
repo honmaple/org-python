@@ -6,7 +6,7 @@
 # Author: jianglin
 # Email: xiyang0807@gmail.com
 # Created: 2018-02-26 11:42:14 (CST)
-# Last Update: Monday 2018-03-19 14:15:32 (CST)
+# Last Update: Monday 2018-09-10 10:10:20 (CST)
 #          By:
 # Description:
 # ********************************************************************************
@@ -58,7 +58,7 @@ class Regex(object):
     any_depth = re.compile(r'(?P<depth>\s*)(?P<title>.+)$')
     order_list = re.compile(r'(?P<depth>\s*)\d+(\.|\))\s+(?P<title>.+)$')
     unorder_list = re.compile(r'(?P<depth>\s*)(-|\+)\s+(?P<title>.+)$')
-    checkbox = re.compile(r'[[](?P<check>.+)[]]\s+(?P<title>.+)$')
+    checkbox = re.compile(r'\[(?P<check>.+)\]\s+(?P<title>.+)$')
 
     table = re.compile(r'\s*\|(?P<cells>(.+\|)+)s*$')
     table_sep = re.compile(r'^(\s*)\|((?:\+|-)*?)\|?$')
