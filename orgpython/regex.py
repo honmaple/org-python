@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # ********************************************************************************
-# Copyright © 2018 jianglin
+# Copyright © 2019 jianglin
 # File Name: regex.py
 # Author: jianglin
 # Email: xiyang0807@gmail.com
 # Created: 2018-02-26 11:42:14 (CST)
-# Last Update: Monday 2018-09-10 10:10:20 (CST)
+# Last Update: Thursday 2019-02-14 12:08:15 (CST)
 #          By:
 # Description:
 # ********************************************************************************
@@ -37,23 +37,23 @@ class Regex(object):
     fn = re.compile(r'\[fn:(?P<text>.+?)\]')
     hr = re.compile(r'^\s*\-{5,}\s*')
 
-    begin_example = re.compile(r'\s*#\+BEGIN_EXAMPLE$')
-    end_example = re.compile(r'\s*#\+END_EXAMPLE$')
+    begin_example = re.compile(r'\s*#\+(BEGIN_EXAMPLE|begin_example)$')
+    end_example = re.compile(r'\s*#\+(END_EXAMPLE|end_example)$')
 
-    begin_verse = re.compile(r'\s*#\+BEGIN_VERSE$')
-    end_verse = re.compile(r'\s*#\+END_VERSE$')
+    begin_verse = re.compile(r'\s*#\+(BEGIN_VERSE|begin_verse)$')
+    end_verse = re.compile(r'\s*#\+(END_VERSE|end_verse)$')
 
-    begin_center = re.compile(r'\s*#\+BEGIN_CENTER$')
-    end_center = re.compile(r'\s*#\+END_CENTER$')
+    begin_center = re.compile(r'\s*#\+(BEGIN_CENTER|begin_center)$')
+    end_center = re.compile(r'\s*#\+(END_CENTER|end_center)$')
 
-    begin_quote = re.compile(r'\s*#\+BEGIN_QUOTE$')
-    end_quote = re.compile(r'\s*#\+END_QUOTE$')
+    begin_quote = re.compile(r'\s*#\+(BEGIN_QUOTE|begin_quote)$')
+    end_quote = re.compile(r'\s*#\+(END_QUOTE|end_quote)$')
 
-    begin_src = re.compile(r'\s*#\+BEGIN_SRC\s+(?P<lang>.+)$')
-    end_src = re.compile(r'\s*#\+END_SRC$')
+    begin_src = re.compile(r'\s*#\+(BEGIN_SRC|begin_src)\s+(?P<lang>.+)$')
+    end_src = re.compile(r'\s*#\+(END_SRC|end_src)$')
 
-    begin_export = re.compile(r'\s*#\+BEGIN_EXPORT\s+(?P<lang>.+)$')
-    end_export = re.compile(r'\s*#\+END_EXPORT$')
+    begin_export = re.compile(r'\s*#\+(BEGIN_EXPORT|begin_export)\s+(?P<lang>.+)$')
+    end_export = re.compile(r'\s*#\+(END_EXPORT|end_export)$')
 
     any_depth = re.compile(r'(?P<depth>\s*)(?P<title>.+)$')
     order_list = re.compile(r'(?P<depth>\s*)\d+(\.|\))\s+(?P<title>.+)$')

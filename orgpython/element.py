@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # ********************************************************************************
-# Copyright © 2018 jianglin
+# Copyright © 2019 jianglin
 # File Name: element.py
 # Author: jianglin
 # Email: xiyang0807@gmail.com
 # Created: 2018-02-26 11:44:43 (CST)
-# Last Update: Monday 2018-09-10 10:26:44 (CST)
+# Last Update: Thursday 2019-02-14 12:08:15 (CST)
 #          By:
 # Description:
 # ********************************************************************************

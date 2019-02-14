@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # ********************************************************************************
-# Copyright © 2018 jianglin
+# Copyright © 2019 jianglin
 # File Name: inline.py
 # Author: jianglin
 # Email: xiyang0807@gmail.com
