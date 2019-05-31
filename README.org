@@ -1,7 +1,7 @@
 * org-python
   An orgmode parser for converting orgmode to html based on python.
 
-  [[https://pypi.python.org/pypi/org-python][https://img.shields.io/badge/pypi-v0.2.2-brightgreen.svg]]
+  [[https://pypi.python.org/pypi/org-python][https://img.shields.io/badge/pypi-v0.2.3-brightgreen.svg]]
   [[https://python.org][https://img.shields.io/badge/python-3-brightgreen.svg]]
   [[LICENSE][https://img.shields.io/badge/license-BSD-blue.svg]]
 
@@ -30,6 +30,17 @@
    #+END_SRC
 
 
+   
+** problem
+   Can't render *unclose block* correctly
+
+   #+BEGIN_EXAMPLE
+   #+BEGIN_QUOTE
+   test *test*
+   #+BEGIN_CENTER
+   *test1*
+   #+END_QUOTE
+   #+END_EXAMPLE
 ** feature
    - [X] toc
    - [X] heading
@@ -95,5 +106,3 @@
      | row3-1 | row3-2 | row3-3 |
      #+END_EXAMPLE
 
-** Thanks to
-   https://github.com/nasa9084/py-org

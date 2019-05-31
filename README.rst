@@ -7,7 +7,7 @@
 
 An orgmode parser for converting orgmode to html based on python.
 
-.. image:: https://img.shields.io/badge/pypi-v0.2.1-brightgreen.svg
+.. image:: https://img.shields.io/badge/pypi-v0.2.3-brightgreen.svg
     :target: https://pypi.python.org/pypi/org-python
 .. image:: https://img.shields.io/badge/python-3-brightgreen.svg
     :target: https://python.org
@@ -40,7 +40,20 @@ An orgmode parser for converting orgmode to html based on python.
     '''
     print(org_to_html(text,offset=0))
 
-1.2 feature
+1.2 problem
+~~~~~~~~~~~
+
+Can't render **unclose block** correctly
+
+::
+
+    #+BEGIN_QUOTE
+    test *test*
+    #+BEGIN_CENTER
+    *test1*
+    #+END_QUOTE
+
+1.3 feature
 ~~~~~~~~~~~
 
 - ☑ toc

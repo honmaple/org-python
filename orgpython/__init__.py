@@ -4,13 +4,27 @@
 # Copyright © 2019 jianglin
 # File Name: __init__.py
 # Author: jianglin
-# Email: xiyang0807@gmail.com
-# Created: 2018-02-26 11:41:17 (CST)
-# Last Update: Thursday 2019-02-14 12:08:14 (CST)
+# Email: mail@honmaple.com
+# Created: 2019-05-29 18:06:22 (CST)
+# Last Update: Thursday 2019-06-06 17:14:32 (CST)
 #          By:
 # Description:
 # ********************************************************************************
-from .element import Org
+from .block import Block, Toc
+
+
+class Org(Block):
+    def __init__(self, text, offset=0, toc=True, escape=True):
+        super(Org, self).__init__(text)
+        self.escape = escape
+        self.offset = offset
+        self.toc = Toc() if toc else None
+
+    def to_html(self, init=True):
+        text = super(Org, self).to_html(init)
+        if self.toc:
+            text = self.toc.to_html() + text
+        return text
 
 
 def org_to_html(text, offset=0, toc=True, escape=True):
