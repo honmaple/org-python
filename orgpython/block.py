@@ -6,7 +6,7 @@
 # Author: jianglin
 # Email: mail@honmaple.com
 # Created: 2018-02-26 11:44:43 (CST)
-# Last Update: Thursday 2019-06-06 21:10:46 (CST)
+# Last Update: Thursday 2019-06-06 21:15:23 (CST)
 #          By:
 # Description:
 # ********************************************************************************
@@ -121,7 +121,7 @@ class Block(object):
         # TODO: unclose block
         b = self.current
         while b.parent is not None:
-            if b.matchend(text):
+            if b.matchend(text) and b.ispair:
                 # if b.ispair:
                 #     unclose = b.children.pop()
                 #     b.children.append(b.inlinetext(unclose.firstline))
