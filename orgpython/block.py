@@ -6,7 +6,7 @@
 # Author: jianglin
 # Email: mail@honmaple.com
 # Created: 2018-02-26 11:44:43 (CST)
-# Last Update: Thursday 2019-06-06 21:15:23 (CST)
+# Last Update: Saturday 2019-06-08 16:23:59 (CST)
 #          By:
 # Description:
 # ********************************************************************************
@@ -145,7 +145,7 @@ class Block(object):
             self.current.add_child(self.current.inlinetext(text))
             return
 
-        if not self.current.ispair:
+        if not self.current.ispair and not isinstance(self.current, Heading):
             self.current.append(text)
             return
 
@@ -210,11 +210,12 @@ class Toc(Block):
 
 class Heading(Block):
     def __init__(self, title, level=1, offset=0, toc=False):
-        super(Heading, self).__init__(title)
+        super(Heading, self).__init__("")
         self.title = title
         self.level = level
         self.offset = offset
         self.toc = toc
+        self.ispair = False
 
     def hid(self):
         return 'org-{0}'.format(sha1(self.title.encode()).hexdigest()[:10])
@@ -247,7 +248,7 @@ class Heading(Block):
                                                       self.title, hid)
             self.toc.append('{0}- [[#{1}][{2}]]'.format(
                 ' ' * self.level, hid, self.title))
-        return text + '\n'.join([child.to_html() for child in self.children])
+        return text + "\n" + self._to_html()
 
 
 class Src(Block):
@@ -481,7 +482,7 @@ class OrderList(UnorderList):
 
     def __init__(self, title="", depth=0):
         super(OrderList, self).__init__(title, depth)
-        self.label = "<ol>\n{0}\n<ol>"
+        self.label = "<ol>\n{0}\n</ol>"
 
 
 class TableCell(Block):
