@@ -6,7 +6,7 @@
 # Author: jianglin
 # Email: mail@honmaple.com
 # Created: 2018-02-26 11:44:43 (CST)
-# Last Update: Saturday 2019-06-08 16:23:59 (CST)
+# Last Update: Wednesday 2019-06-12 22:55:49 (CST)
 #          By:
 # Description:
 # ********************************************************************************
@@ -536,7 +536,8 @@ class Table(Block):
     def append(self, text):
         if R.tablesep.match(text):
             for child in self.children:
-                child.label = "<th>\n{0}\n</th>"
+                for cell in child.children:
+                    cell.label = "<th>{0}</th>"
             return
         self.add_child(self.tablerow(text))
 

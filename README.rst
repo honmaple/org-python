@@ -7,7 +7,7 @@
 
 An orgmode parser for converting orgmode to html based on python.
 
-.. image:: https://img.shields.io/badge/pypi-v0.2.5-brightgreen.svg
+.. image:: https://img.shields.io/badge/pypi-v0.2.6-brightgreen.svg
     :target: https://pypi.python.org/pypi/org-python
 .. image:: https://img.shields.io/badge/python-3-brightgreen.svg
     :target: https://python.org
