@@ -6,7 +6,7 @@
 # Author: jianglin
 # Email: mail@honmaple.com
 # Created: 2018-02-26 11:44:43 (CST)
-# Last Update: Wednesday 2019-06-12 22:55:49 (CST)
+# Last Update: Monday 2019-07-15 21:29:21 (CST)
 #          By:
 # Description:
 # ********************************************************************************
@@ -36,7 +36,7 @@ class Block(object):
         self.current = self
         self.parent = None
         self.toc = True
-        self.attrs = {'property': {}}
+        self.attrs = dict()
         self.blocks = [
             Heading,
             UnorderList,
@@ -77,9 +77,10 @@ class Block(object):
             value = value.split(" ", 1)
             value.append("")
             key, value = value[0], value[1]
-            self.attrs['property'].setdefault(key.lower(), value)
+            self.attrs.setdefault("property", dict())
+            self.attrs['property'].setdefault(key.lower().strip(), value)
             return
-        self.attrs.setdefault(key.lower(), value)
+        self.attrs.setdefault(key.lower().strip(), value)
 
     def inlinetext(self, text):
         return InlineText(text, self.needparse, self.escape)
@@ -238,16 +239,17 @@ class Heading(Block):
         return False
 
     def to_html(self):
-        text = "<h{0}>{1}</h{0}>".format(
-            self.level + self.offset,
-            self.title,
-        )
+        title = self.inlinetext(self.title).to_html()
+        text = "<h{0}>{1}</h{0}>".format(self.level + self.offset, title)
         if self.toc:
             hid = self.hid()
-            text = '<h{0} id="{2}">{1}</h{0}>'.format(self.level + self.offset,
-                                                      self.title, hid)
+            text = '<h{0} id="{2}">{1}</h{0}>'.format(
+                self.level + self.offset,
+                title,
+                hid,
+            )
             self.toc.append('{0}- [[#{1}][{2}]]'.format(
-                ' ' * self.level, hid, self.title))
+                ' ' * self.level, hid, title))
         return text + "\n" + self._to_html()
 
 

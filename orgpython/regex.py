@@ -6,13 +6,23 @@
 # Author: jianglin
 # Email: mail@honmaple.com
 # Created: 2018-02-26 11:42:14 (CST)
-# Last Update: Thursday 2019-06-06 21:11:43 (CST)
+# Last Update: Monday 2019-07-15 21:05:42 (CST)
 #          By:
 # Description:
 # ********************************************************************************
 import re
 
-_inline_regex = r'((?:^|\s|[\u4e00-\u9fa5])(?![/\\])){0}([^\s]*?|[^\s]+.*?[^\s]+)(?<![/\\]|\s){0}(\B|[\u4e00-\u9fa5])'
+# _chinese_regex = r'[\u4e00-\u9fa5]'
+_inline_beg_regex = r"(?:(^|\s|[^\x00-\x7F]|[\"'-\({{])(?<![/\\]))"
+_inline_match_regex = r"{0}((?![\s]).+?(?<![\s|/\\])){0}"
+_inline_end_regex = r"(?=$|\s|[^\x00-\x7F]|[!\"',-.:;?)\[}}])"
+
+_inline_regex = r'{0}{1}{2}'.format(
+    _inline_beg_regex,
+    _inline_match_regex,
+    _inline_end_regex,
+)
+
 bold = re.compile(_inline_regex.format('\*'))
 italic = re.compile(_inline_regex.format('\*\*'))
 underlined = re.compile(_inline_regex.format('_'))

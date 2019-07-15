@@ -6,7 +6,7 @@
 # Author: jianglin
 # Email: mail@honmaple.com
 # Created: 2018-02-26 11:41:22 (CST)
-# Last Update: Thursday 2019-06-06 21:11:12 (CST)
+# Last Update: Monday 2019-07-15 19:26:42 (CST)
 #          By:
 # Description:
 # ********************************************************************************
@@ -56,8 +56,6 @@ class InlineText(object):
             text = label.format(match.group(2))
             if match.group(1):
                 text = match.group(1) + text
-            if match.group(3):
-                text = text + match.group(3)
             return text
 
         return regex.sub(_match, text)
