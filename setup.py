@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # **************************************************************************
-# Copyright © 2019 jianglin
+# Copyright © 2017-2020 jianglin
 # File Name: setup.py
 # Author: jianglin
 # Email: xiyang0807@gmail.com
 # Created: 2017-07-14 22:07:06 (CST)
-# Last Update: Monday 2019-07-15 21:34:41 (CST)
+# Last Update: Sunday 2020-08-16 19:44:44 (CST)
 #          By:
 # Description:
 # **************************************************************************
@@ -20,7 +20,7 @@ def read(fname):
 
 setup(
     name='org-python',
-    version='0.2.7',
+    version='0.2.8',
     url='https://github.com/honmaple/org-python',
     license='BSD',
     author='honmaple',

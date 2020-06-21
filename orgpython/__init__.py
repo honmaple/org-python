@@ -1,31 +1,25 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # ********************************************************************************
-# Copyright © 2019 jianglin
+# Copyright © 2017-2020 jianglin
 # File Name: __init__.py
 # Author: jianglin
 # Email: mail@honmaple.com
 # Created: 2019-05-29 18:06:22 (CST)
-# Last Update: Thursday 2019-06-06 17:14:32 (CST)
+# Last Update: Sunday 2020-08-16 19:45:09 (CST)
 #          By:
 # Description:
 # ********************************************************************************
-from .block import Block, Toc
+from .document import Document
 
 
-class Org(Block):
-    def __init__(self, text, offset=0, toc=True, escape=True):
-        super(Org, self).__init__(text)
-        self.escape = escape
-        self.offset = offset
-        self.toc = Toc() if toc else None
-
-    def to_html(self, init=True):
-        text = super(Org, self).to_html(init)
-        if self.toc:
-            text = self.toc.to_html() + text
-        return text
+def to_text(content, **kwargs):
+    return Document(content, **kwargs).to_text()
 
 
-def org_to_html(text, offset=0, toc=True, escape=True):
-    return Org(text, offset, toc, escape).to_html()
+def to_html(content, **kwargs):
+    return Document(content, **kwargs).to_html()
+
+
+def to_markdown(content, **kwargs):
+    return Document(content, **kwargs).to_markdown()

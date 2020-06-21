@@ -1,7 +1,7 @@
 * org-python
   An orgmode parser for converting orgmode to html based on python.
 
-  [[https://pypi.python.org/pypi/org-python][https://img.shields.io/badge/pypi-v0.2.7-brightgreen.svg]]
+  [[https://pypi.python.org/pypi/org-python][https://img.shields.io/badge/pypi-v0.2.8-brightgreen.svg]]
   [[https://python.org][https://img.shields.io/badge/python-3-brightgreen.svg]]
   [[LICENSE][https://img.shields.io/badge/license-BSD-blue.svg]]
 
@@ -11,36 +11,24 @@
    #+END_SRC
 
    #+BEGIN_SRC python
-  from orgpython import org_to_html
+     from orgpython import to_html
 
-  text = '''* heading
-  - list1
-  - list2
-  - list3
-    - list4
-  - list5
+     text = '''* heading
+     - list1
+     - list2
+     - list3
+       - list4
+     - list5
 
-    | th1-1  | th1-2  | th1-3  |
-    |--------+--------+--------|
-    | row1-1 | row1-2 | row1-3 |
-    | row2-1 | row2-2 | row2-3 |
-    | row3-1 | row3-2 | row3-3 |
-  '''
-  print(org_to_html(text,offset=0))
+       | th1-1  | th1-2  | th1-3  |
+       |--------+--------+--------|
+       | row1-1 | row1-2 | row1-3 |
+       | row2-1 | row2-2 | row2-3 |
+       | row3-1 | row3-2 | row3-3 |
+     '''
+     print(to_html(text, toc=True, offset=0, highlight=True))
    #+END_SRC
 
-
-   
-** problem
-   Can't render *unclose block* correctly
-
-   #+BEGIN_EXAMPLE
-   #+BEGIN_QUOTE
-   test *test*
-   #+BEGIN_CENTER
-   *test1*
-   #+END_QUOTE
-   #+END_EXAMPLE
 ** feature
    - [X] toc
    - [X] heading
