@@ -261,6 +261,10 @@ class Src(Block):
         self.language = language
         self.label = "<pre class=\"src src-{0}\">\n{1}\n</pre>"
 
+    def init(self):
+        if pygments is not None:
+            self.escape = False
+
     @classmethod
     def new(cls, text):
         match = R.begin_src.match(text)
