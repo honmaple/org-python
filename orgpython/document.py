@@ -6,7 +6,7 @@
 # Author: jianglin
 # Email: mail@honmaple.com
 # Created: 2018-02-26 11:44:43 (CST)
-# Last Update: Sunday 2020-08-16 19:45:21 (CST)
+# Last Update: Tuesday 2020-08-18 00:46:06 (CST)
 # Description:
 # ********************************************************************************
 import re
@@ -35,11 +35,12 @@ LIST_ORDER_REGEXP = re.compile(r"^(\s*)(([0-9]+|[a-zA-Z])[.)])(\s+(.*)|$)")
 LIST_STATUS_REGEXP = re.compile(r"\[( |X|-)\]\s")
 LIST_LEVEL_REGEXP = re.compile(r"(\s*)(.+)$")
 
-HEADLINE_REGEXP = re.compile(
-    r"^(\*+)(?:\s+(.+?))?(?:\s+\[#(.+)\])?\s+(.+?)(?:\s+:(.+):)?$")
+HEADLINE_REGEXP = re.compile(r"^(\*+)(?:\s+\[#(.+)\])?\s+(.+?)(?:\s+:(.+):)?$")
 KEYWORD_REGEXP = re.compile(r"^(\s*)#\+([^:]+):(\s+(.*)|$)")
 COMMENT_REGEXP = re.compile(r"^(\s*)#(.*)")
 ATTRIBUTE_REGEXP = re.compile(r"(?:^|\s+)(:[-\w]+)\s+(.*)$")
+
+TODO_KEYWORDS = ("DONE", "TODO")
 
 
 def string_split(s, sep):
@@ -54,6 +55,8 @@ class Parser(object):
         self.level = 0
         self.element = ""
         self.children = []
+        self.escape = True
+        self.needparse = True
         self.parsed_nodes = (
             "blankline",
             "headline",
@@ -79,45 +82,44 @@ class Parser(object):
     def add_child(self, node):
         last = self.last_child()
         if self.is_headline(last):
-            if self.is_headline(node) and node.stars < last.stars:
-                self.children.append(node)
-                return
             if self.is_properties(node):
                 last.properties = node
                 return
-            last.add_child(node)
-            return
+
+            if not self.is_headline(node):
+                last.add_child(node)
+                return
+
+            if self.is_headline(node) and node.stars > last.stars:
+                last.add_child(node)
+                return
 
         if self.is_table(last):
-            if not self.is_table(node):
-                self.children.append(node)
+            if self.is_table(node):
+                last.add_child(node)
                 return
-            last.add_child(node)
-            return
 
         if self.is_list(last):
             if self.is_blankline(node):
                 last.add_child(node)
                 return
-            if node.level < last.level:
-                self.children.append(node)
+
+            if node.level > last.level:
+                last.add_child(node)
                 return
-            if not self.is_list(node) and node.level == last.level:
-                self.children.append(node)
+
+            if self.is_list(node) and node.level == last.level:
+                last.add_child(node)
                 return
-            last.add_child(node)
-            return
 
         if self.is_keyword(last):
             if self.is_table(node):
                 node.keyword = last
 
         if self.is_paragraph(last):
-            if not self.is_inlinetext(node):
-                self.children.append(node)
+            if self.is_inlinetext(node):
+                last.add_child(node)
                 return
-            last.add_child(node)
-            return
 
         if self.is_inlinetext(node):
             self.children.append(self.paragraph(node))
@@ -152,8 +154,8 @@ class Parser(object):
     def is_properties(self, child):
         return child and isinstance(child, Properties)
 
-    def inlinetext(self, text, needparse=True, escape=True):
-        return InlineText(text, needparse, escape)
+    def inlinetext(self, text):
+        return InlineText(text, self.needparse, self.escape)
 
     def paragraph(self, node):
         n = Paragraph()
@@ -257,7 +259,14 @@ class Parser(object):
 
 
 class Headline(Parser):
-    def __init__(self, title, stars=1, keyword=None, priority=None, tags=[]):
+    def __init__(
+            self,
+            title,
+            stars=1,
+            keyword=None,
+            priority=None,
+            tags=[],
+            todo_keywords=TODO_KEYWORDS):
         super(Headline, self).__init__()
         self.title = title
         self.stars = stars
@@ -265,37 +274,34 @@ class Headline(Parser):
         self.priority = priority
         self.tags = tags
         self.properties = None
+        self.todo_keywords = todo_keywords
 
     @classmethod
     def match(cls, line):
         match = HEADLINE_REGEXP.match(line)
         if not match:
             return
-        stars = len(match.group(1))
-        keyword = match.group(2)
-        priority = match.group(3)
-        title = match.group(4)
-        if keyword and not priority:
-            if len(keyword) > 4 and keyword[0:2] == "[#":
-                priority = keyword
-                keyword = ""
+
+        stars = len(match[1])
+        priority = match[2]
+        title = match[3]
+
         return cls(
             title,
             stars,
-            keyword,
+            "",
             priority,
-            string_split(match.group(5), ":"),
+            string_split(match[4], ":"),
         )
 
-    def custom_id(self):
+    def id(self):
         hid = 'org-{0}'.format(sha1(self.title.encode()).hexdigest()[:10])
         if self.properties:
             return self.properties.get("CUSTOM_ID", hid)
         return hid
 
-    def to_html(self):
-        b = "<h{0} id=\"{1}\">".format(self.stars, self.custom_id())
-
+    def toc(self):
+        b = ""
         if self.keyword:
             b = b + "<span class=\"todo\">{0}</span>".format(self.keyword)
         if self.priority:
@@ -305,8 +311,14 @@ class Headline(Parser):
 
         for tag in self.tags:
             b = b + "<span class=\"tag\">{0}</span>".format(tag)
+        return b
 
-        b = b + "</h{0}>\n".format(self.stars)
+    def to_html(self):
+        b = "<h{0} id=\"{1}\">{2}</h{0}>".format(
+            self.stars,
+            self.id(),
+            self.toc(),
+        )
         return b + super(Headline, self).to_html()
 
 
@@ -411,16 +423,11 @@ class Export(Block):
     def __init__(self, language="", params=""):
         super(Export, self).__init__("export", params)
         self.language = language
-
-    def parse(self, index, lines):
-        return self.inlinetext(
-            lines[index],
-            True,
-            self.language == "HTML",
-        ), index
+        self.escape = self.language.upper() != "HTML"
+        self.parsed_nodes = ()
 
     def to_html(self):
-        if self.language.upper() == "HTML":
+        if not self.escape:
             return super(Export, self).to_html()
         return ""
 
@@ -431,13 +438,12 @@ class Src(Block):
         self.language = language
         self.highlight_code = highlight
         self.element = "<pre class=\"src src-{0}\">\n{1}\n</pre>"
+        self.needparse = False
+        self.escape = False
         self.parsed_nodes = ()
 
     def add_child(self, node):
         self.children.append(node)
-
-    def parse(self, index, lines):
-        return self.inlinetext(lines[index], False, False), index
 
     def highlight(self, language, text):
         return src_highlight(language, text)
@@ -523,8 +529,8 @@ class List(Parser):
         if self.is_list(node) and node.level == self.level:
             self.children.append(node.children[0])
             return
-        child = self.last_child()
-        child.add_child(node)
+        last = self.last_child()
+        last.add_child(node)
 
 
 class Descriptive(List):
@@ -551,7 +557,7 @@ class UnorderList(List):
         match = LIST_UNORDER_REGEXP.match(line)
         if not match:
             return
-        title = ListItem.match(match[3])
+        title = ListItem.match(match[4])
         return cls([title])
 
 
@@ -706,31 +712,69 @@ class Paragraph(Parser):
         self.children.append(node)
 
 
-class Toc(Parser):
-    def __init__(self, maxstars=5):
-        super(Toc, self).__init__()
-        self.maxstars = maxstars
+class Section(Parser):
+    def __init__(self, headline):
+        super(Section, self).__init__()
+        self.headline = headline
+
+    @property
+    def stars(self):
+        return self.headline.stars
 
     def add_child(self, node):
+        last = self.last_child()
+        if not last:
+            self.children.append(node)
+            return
+
+        if node.stars > last.stars:
+            last.add_child(node)
+            return
         self.children.append(node)
 
     def to_html(self):
-        self.lines = [
-            '{0}- [[#{1}][{2}]]'.format(
-                ' ' * child.stars,
-                child.custom_id(),
-                child.title,
-            ) for child in self.children
-        ]
-        self.children = []
-        text = super(Toc, self).to_html()
-        if text:
-            return (
-                '<div id="table-of-contents">'
-                '<h2>Table of Contents</h2>'
-                '<div id="text-table-of-contents">\n{}\n</div></div>'
-            ).format(text)
+        text = "<li>"
+        text += "<a href=\"{0}\">{1}</a>".format(
+            self.headline.id(),
+            self.headline.toc(),
+        )
+        for child in self.children:
+            text += "\n<ul>\n"
+            text += child.to_html()
+            text += "\n</ul>\n"
+        text += "</li>"
         return text
+
+
+class Toc(Parser):
+    def __init__(self):
+        super(Toc, self).__init__()
+        self.element = (
+            '<div id="table-of-contents">'
+            '<h2>Table of Contents</h2>'
+            '<div id="text-table-of-contents">'
+            '\n<ul>\n{0}\n</ul>\n</div></div>')
+
+    def add_child(self, node):
+        last = self.last_child()
+        if not last:
+            self.children.append(node)
+            return
+
+        if node.stars > last.stars:
+            last.add_child(node)
+            return
+
+        if node.stars < last.stars:
+            last.add_child(node)
+            return
+
+        self.children.append(node)
+
+    def to_html(self):
+        if not self.children:
+            return ""
+        return super(Toc, self).to_html()
 
 
 class Document(Parser):
@@ -744,6 +788,9 @@ class Document(Parser):
 
     def _is_true(self, value):
         return value in ("true", "t", "1", True, 1)
+
+    def section(self, node):
+        return Section(node)
 
     def parse_keyword(self, index, lines):
         block, index = super(Document, self).parse_keyword(index, lines)
@@ -763,7 +810,15 @@ class Document(Parser):
         if not block:
             return block, index
         block.stars = block.stars + self.offset
-        self.toc.add_child(block)
+
+        todo_keywords = self.properties.get("TODO")
+        if todo_keywords:
+            block.todo_keywords = todo_keywords.split(" ")
+        s = block.title.split(" ", 1)
+        if len(s) > 1 and s[0] in block.todo_keywords:
+            block.keyword = s[0]
+            block.title = s[1]
+        self.toc.add_child(self.section(block))
         return block, index
 
     def parse_block(self, index, lines):
