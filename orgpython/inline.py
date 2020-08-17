@@ -6,7 +6,7 @@
 # Author: jianglin
 # Email: mail@honmaple.com
 # Created: 2018-02-26 11:41:22 (CST)
-# Last Update: Sunday 2020-08-16 19:45:26 (CST)
+# Last Update: Tuesday 2020-08-18 02:00:32 (CST)
 #          By:
 # Description:
 # ********************************************************************************
@@ -417,10 +417,10 @@ class InlineText(InlineParser):
         super(InlineText, self).__init__(content)
         self.needparse = needparse
         self.escape = escape
-        if self.escape:
-            self.content = html_escape(self.content)
 
     def to_html(self):
+        if self.escape:
+            self.content = html_escape(self.content)
         if not self.needparse:
             return self.content
         return super(InlineText, self).to_html()

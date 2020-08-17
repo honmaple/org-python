@@ -6,7 +6,7 @@
 # Author: jianglin
 # Email: mail@honmaple.com
 # Created: 2018-02-26 11:44:43 (CST)
-# Last Update: Tuesday 2020-08-18 00:46:06 (CST)
+# Last Update: Tuesday 2020-08-18 02:27:13 (CST)
 # Description:
 # ********************************************************************************
 import re
@@ -35,7 +35,8 @@ LIST_ORDER_REGEXP = re.compile(r"^(\s*)(([0-9]+|[a-zA-Z])[.)])(\s+(.*)|$)")
 LIST_STATUS_REGEXP = re.compile(r"\[( |X|-)\]\s")
 LIST_LEVEL_REGEXP = re.compile(r"(\s*)(.+)$")
 
-HEADLINE_REGEXP = re.compile(r"^(\*+)(?:\s+\[#(.+)\])?\s+(.+?)(?:\s+:(.+):)?$")
+HEADLINE_REGEXP = re.compile(
+    r"^(\*+)(?:\s+(.+?))?(?:\s+\[#(.+)\])?(\s+.*?)(?:\s+:(.+):)?$")
 KEYWORD_REGEXP = re.compile(r"^(\s*)#\+([^:]+):(\s+(.*)|$)")
 COMMENT_REGEXP = re.compile(r"^(\s*)#(.*)")
 ATTRIBUTE_REGEXP = re.compile(r"(?:^|\s+)(:[-\w]+)\s+(.*)$")
@@ -283,15 +284,23 @@ class Headline(Parser):
             return
 
         stars = len(match[1])
-        priority = match[2]
-        title = match[3]
+        keyword = match[2] or ""
+        priority = match[3] or ""
+
+        if keyword and not priority:
+            if len(keyword) >= 4 and keyword[0:2] == "[#":
+                priority = keyword[2:-1]
+                keyword = ""
+
+        title = keyword + match[4]
+        keyword = ""
 
         return cls(
             title,
             stars,
-            "",
+            keyword,
             priority,
-            string_split(match[4], ":"),
+            string_split(match[5], ":"),
         )
 
     def id(self):
@@ -311,7 +320,7 @@ class Headline(Parser):
 
         for tag in self.tags:
             b = b + "<span class=\"tag\">{0}</span>".format(tag)
-        return b
+        return b.strip()
 
     def to_html(self):
         b = "<h{0} id=\"{1}\">{2}</h{0}>".format(
@@ -484,14 +493,15 @@ class BlockResult(Parser):
 
 
 class ListItem(Parser):
-    def __init__(self, status=""):
+    def __init__(self, status=None, checkbox="HTML"):
         super(ListItem, self).__init__()
         self.status = status
+        self.checkbox = checkbox
         self.element = "<li>\n{0}\n</li>"
 
     @classmethod
     def match(cls, line):
-        status = ""
+        status = None
         content = line
         status_match = LIST_STATUS_REGEXP.match(line)
         if status_match:
@@ -500,6 +510,32 @@ class ListItem(Parser):
         node = cls(status)
         node.add_child(node.inlinetext(content))
         return node
+
+    def set_status(self):
+        if not self.checkbox:
+            return
+
+        if self.checkbox == "HTML":
+            if self.status == "X":
+                node = self.inlinetext(
+                    '<input type="checkbox" checked="checked" />')
+            else:
+                node = self.inlinetext('<input type="checkbox" />')
+            node.needparse = False
+            node.escape = False
+        else:
+            node = self.inlinetext("=[{0}]=".format(self.status))
+
+        if not self.children:
+            self.children.append(node)
+            return
+
+        self.children[0].children = [node] + self.children[0].children
+
+    def to_html(self):
+        if self.status is not None:
+            self.set_status()
+        return super(ListItem, self).to_html()
 
 
 class DescriptiveItem(ListItem):
@@ -734,7 +770,7 @@ class Section(Parser):
 
     def to_html(self):
         text = "<li>"
-        text += "<a href=\"{0}\">{1}</a>".format(
+        text += "<a href=\"#{0}\">{1}</a>".format(
             self.headline.id(),
             self.headline.toc(),
         )
