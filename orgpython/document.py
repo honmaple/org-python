@@ -6,7 +6,7 @@
 # Author: jianglin
 # Email: mail@honmaple.com
 # Created: 2018-02-26 11:44:43 (CST)
-# Last Update: Tuesday 2020-08-18 02:27:13 (CST)
+# Last Update: Wednesday 2020-08-19 12:00:03 (CST)
 # Description:
 # ********************************************************************************
 import re
@@ -257,6 +257,13 @@ class Parser(object):
         if self.element:
             return self.element.format(text)
         return text
+
+    def __str__(self):
+        str_children = [str(child) for child in self.children]
+        return self.__class__.__name__ + '(' + ','.join(str_children) + ')'
+
+    def __repr__(self):
+        return self.__str__()
 
 
 class Headline(Parser):
@@ -774,11 +781,11 @@ class Section(Parser):
             self.headline.id(),
             self.headline.toc(),
         )
-        for child in self.children:
-            text += "\n<ul>\n"
-            text += child.to_html()
-            text += "\n</ul>\n"
-        text += "</li>"
+        if not self.children:
+            return text + "</li>"
+
+        text += "\n<ul>\n{0}\n</ul>\n</li>".format(
+            "\n".join([child.to_html() for child in self.children]))
         return text
 
 

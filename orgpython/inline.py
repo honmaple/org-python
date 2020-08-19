@@ -6,7 +6,7 @@
 # Author: jianglin
 # Email: mail@honmaple.com
 # Created: 2018-02-26 11:41:22 (CST)
-# Last Update: Tuesday 2020-08-18 02:00:32 (CST)
+# Last Update: Tuesday 2020-08-18 17:21:40 (CST)
 #          By:
 # Description:
 # ********************************************************************************
@@ -230,6 +230,12 @@ class InlineParser(object):
         if self.element:
             return self.element.format(text)
         return text
+
+    def __str__(self):
+        return '{}({})'.format(self.__class__.__name__, self.content.strip())
+
+    def __repr__(self):
+        return self.__str__()
 
 
 class Text(InlineParser):
