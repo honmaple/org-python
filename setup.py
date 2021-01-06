@@ -12,10 +12,15 @@
 # **************************************************************************
 from setuptools import setup
 import os
+import sys
 
 
 def read(fname):
-    return open(os.path.join(os.path.dirname(__file__), fname)).read()
+    if sys.version_info < (3, 7) and sys.version_info > (2, 7):
+        file = open(os.path.join(os.path.dirname(__file__), fname), encoding = 'utf-8')
+    else:
+        file = open(os.path.join(os.path.dirname(__file__), fname))
+    return file.read()
 
 
 setup(
