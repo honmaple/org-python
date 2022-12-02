@@ -1,7 +1,7 @@
 * org-python
   An orgmode parser for converting orgmode to html based on python.
 
-  [[https://pypi.python.org/pypi/org-python][https://img.shields.io/badge/pypi-v0.1.0-brightgreen.svg]]
+  [[https://pypi.python.org/pypi/org-python][https://img.shields.io/badge/pypi-v0.3.2-brightgreen.svg]]
   [[https://python.org][https://img.shields.io/badge/python-3-brightgreen.svg]]
   [[LICENSE][https://img.shields.io/badge/license-BSD-blue.svg]]
 
@@ -11,27 +11,26 @@
    #+END_SRC
 
    #+BEGIN_SRC python
-  from orgpython import org_to_html
+     from orgpython import to_html
 
-  text = '''* heading
-  - list1
-  - list2
-  - list3
-    - list4
-  - list5
+     text = '''* heading
+     - list1
+     - list2
+     - list3
+       - list4
+     - list5
 
-    | th1-1  | th1-2  | th1-3  |
-    |--------+--------+--------|
-    | row1-1 | row1-2 | row1-3 |
-    | row2-1 | row2-2 | row2-3 |
-    | row3-1 | row3-2 | row3-3 |
-  '''
-  print(org_to_html(text,offset=0))
+       | th1-1  | th1-2  | th1-3  |
+       |--------+--------+--------|
+       | row1-1 | row1-2 | row1-3 |
+       | row2-1 | row2-2 | row2-3 |
+       | row3-1 | row3-2 | row3-3 |
+     '''
+     print(to_html(text, toc=True, offset=0))
    #+END_SRC
 
-
 ** feature
-   - [ ] toc
+   - [X] toc
    - [X] heading
      #+BEGIN_EXAMPLE
      * headind 1
@@ -41,7 +40,7 @@
      ***** headind 5
      ****** headind 6
      #+END_EXAMPLE
-   - [X] ordered_list
+   - [X] unordered_list
      #+BEGIN_EXAMPLE
      - list
      - list
@@ -49,7 +48,7 @@
          + list
        - list
      #+END_EXAMPLE
-   - [X] unordered_list
+   - [X] ordered_list
      #+BEGIN_EXAMPLE
      1. list
      2. list
@@ -94,6 +93,3 @@
      | row2-1 | row2-2 | row2-3 |
      | row3-1 | row3-2 | row3-3 |
      #+END_EXAMPLE
-
-** Thanks to
-   https://github.com/nasa9084/py-org

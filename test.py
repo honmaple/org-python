@@ -6,42 +6,50 @@
 # Author: jianglin
 # Email: xiyang0807@gmail.com
 # Created: 2017-03-16 16:28:32 (CST)
-# Last Update:星期五 2017-7-21 9:20:24 (CST)
+# Last Update: Thursday 2020-02-06 14:32:51 (CST)
 #          By:
 # Description:
 # **************************************************************************
 import unittest
-# from org1 import org_to_html
-from orgpython import org_to_html
-from orgpython import Org
+from orgpython import Block
+
+TEXT = '''* Heading1
+** Heading2
+*** Heading3.1
+    *bold* bold* *bold\* \*bold\* \*bold*
+    **italic** italic** **italic\** \**italic\** \**italic**
+    =code= code= =code\= \=code\= \=code=
+    ~code~ code~ ~code\~ \~code\~ \~cod~
+*** Heading3.2
+    [[link][url]]
+'''
 
 
 class TestOrg(unittest.TestCase):
     def test_heading(self):
-        org = Org('* heading1\n** heading2', toc=True)
-        self.assertEqual(
-            str(org), 'Org(Heading(* heading1),Heading(** heading2))')
+        text = "* TODO heading  :TAG1:TAG2:"
 
-    def test_bold(self):
-        text = '''
-        *bold* bold*
-        bold* bold*
-        *bold* *bold*
-        '''
-        html = org_to_html(text)
-        self.assertEqual(html,
-                         '<b>bold</b> bold*bold* bold*<b>bold</b> <b>bold</b>')
+        b = Block(text)
+        b.init()
+        heading = b.children[0]
+        self.assertEqual(heading.title, "heading")
+        self.assertEqual(heading.stars, 1)
+        self.assertEqual(heading.tags, ["TAG1", "TAG2"])
+        self.assertEqual(heading.keyword, "TODO")
 
-    def test_italic(self):
-        text = '''
-        **italic** italic*
-        italic* italic*
-        **italic** **italic**
-        '''
-        html = org_to_html(text)
-        self.assertEqual(
-            html,
-            '<i>italic</i> italic*italic* italic*<i>italic</i> <i>italic</i>')
+        text = "* [#B] heading  :TAG1:TAG2:"
+        b = Block(text)
+        b.init()
+        heading = b.children[0]
+
+        self.assertEqual(heading.title, "heading")
+        self.assertEqual(heading.stars, 1)
+        self.assertEqual(heading.tags, ["TAG1", "TAG2"])
+        self.assertEqual(heading.keyword, None)
+        self.assertEqual(heading.priority, "[#B]")
+
+    def test_src(self):
+        pass
 
 
 if __name__ == '__main__':
