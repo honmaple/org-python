@@ -1,25 +1,21 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# ********************************************************************************
-# Copyright © 2017-2020 jianglin
-# File Name: __init__.py
-# Author: jianglin
-# Email: mail@honmaple.com
-# Created: 2019-05-29 18:06:22 (CST)
-# Last Update: Sunday 2020-08-16 19:45:09 (CST)
-#          By:
-# Description:
-# ********************************************************************************
-from .document import Document
 
-
-def to_text(content, **kwargs):
-    return Document(content, **kwargs).to_text()
+from orgpython.parser import Document
+from orgpython.render import HTML, Debug
 
 
 def to_html(content, **kwargs):
-    return Document(content, **kwargs).to_html()
+    return render_html(content, **kwargs)
 
 
-def to_markdown(content, **kwargs):
-    return Document(content, **kwargs).to_markdown()
+def render_html(content, **kwargs):
+    r = HTML(**kwargs)
+    r.document = Document(content)
+    return r.render()
+
+
+def render_debug(content, **kwargs):
+    r = Debug(**kwargs)
+    r.document = Document(content)
+    return r.render()
